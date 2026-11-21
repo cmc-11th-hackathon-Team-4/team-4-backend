@@ -6,7 +6,10 @@ import com.cmc.hackathon4.domain.chore.dto.ChoreCreateResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChoreListResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChorePresetResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
+import com.cmc.hackathon4.global.exception.ErrorCode;
 import com.cmc.hackathon4.global.response.ApiResponse;
+import com.cmc.hackathon4.global.swagger.ApiErrorCase;
+import com.cmc.hackathon4.global.swagger.ApiErrorCodes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,30 +19,25 @@ public interface ChoreApiDocs {
 
 	@Operation(summary = "기본 집안일 목록 조회", description = "집안일 고르기 화면(S-04)의 선택지. 목록은 DB 가 아니라 서버 상수다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404)")
 	ApiResponse<ChorePresetResponse> findPresets(User user);
 
 	@Operation(summary = "우리 집 집안일 목록 조회", description = "집안일 관리(V5-12). 삭제되지 않은(active) 집안일만 반환한다. 구성원만 조회할 수 있다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "이 집의 구성원이 아님 (HOUSE-403-1)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404), 집 없음 (HOUSE-404)")
+	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND })
 	ApiResponse<ChoreListResponse> findChores(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
 	@Operation(summary = "집안일 고르기 일괄 저장", description = "집안일 고르기 화면(S-04)에서 방장이 '다음'을 누를 때. WAITING 상태에서만 가능하며 기존 목록을 통째로 교체한다(보낸 names 가 최종 목록). 시작 후에는 집안일 추가 API 를 사용한다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "빈 목록, 이름 길이 위반, 중복 이름 (COMMON-400)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403), 구성원이 아님 (HOUSE-403-1)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404), 집 없음 (HOUSE-404)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 진행 중 (HOUSE-409-2), 이미 시작된 집 (HOUSE-409-4)")
+	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.HOUSE_DISTRIBUTING, ErrorCode.HOUSE_ALREADY_STARTED })
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "빈 목록, 이름 길이 위반, 중복 이름")
 	ApiResponse<ChoreListResponse> replaceChores(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			ChoreBulkSaveRequest request);
 
 	@Operation(summary = "집안일 추가", description = "시작한 뒤 메인(V5-13)에서 구성원 누구나 집안일을 추가한다. 집이 ACTIVE 이면 추가한 사람의 짐으로 바로 들어가 assignment 가 채워지고, WAITING 이면 assignment 는 null. 배분 확인 중(DISTRIBUTING)에는 추가할 수 없다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "추가 성공")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이름 길이 위반 (COMMON-400)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "이 집의 구성원이 아님 (HOUSE-403-1)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404), 집 없음 (HOUSE-404), ACTIVE 집인데 기간이 없음 (PERIOD-404)")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "같은 이름의 집안일이 이미 있음 (CHORE-409), 배분 진행 중 (HOUSE-409-2)")
+	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.PERIOD_NOT_FOUND, ErrorCode.HOUSE_DISTRIBUTING })
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반")
+	@ApiErrorCase(code = ErrorCode.CHORE_DUPLICATED, when = "같은 이름의 집안일이 이미 있음")
 	ApiResponse<ChoreCreateResponse> createChore(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			ChoreCreateRequest request);
 

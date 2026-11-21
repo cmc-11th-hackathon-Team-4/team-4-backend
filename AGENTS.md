@@ -60,6 +60,10 @@ com/cmc/hackathon4/
 
 ## Swagger·로그·테스트
 - Swagger 어노테이션은 `XxxApiDocs` 인터페이스에만. 컨트롤러는 implements 하고 매핑·로직만.
+- 에러 응답은 `@ApiResponse(responseCode = "4xx", ...)` 로 손으로 쓰지 않는다. `@ApiErrorCodes({ ErrorCode.XXX, ... })` 로 그 API 가 낼 수 있는 코드를 적으면 상태별 응답과 코드별 예시가 자동으로 만들어진다 (`global/swagger/`).
+  - 그 API 에서만의 발생 상황은 `@ApiErrorCase(code = ErrorCode.XXX, when = "...")` 로 덧붙인다.
+  - 요청 본문 검증 실패(`COMMON-400`)와 `@CurrentUser` 의 헤더 없음(`COMMON-400`)·미등록 기기(`USER-404`)는 자동으로 붙으므로 적지 않는다.
+  - 성공 응답(`200` 등)은 지금처럼 `@ApiResponse` 로 쓴다.
 - 비밀번호, 토큰, 개인정보, 요청 본문 전체는 로그 금지. BusinessException 은 로그 남기지 않음.
 - 테스트는 서비스 핵심 로직만, 메서드명 한글 허용 (H2 로 실행).
 
@@ -67,6 +71,7 @@ com/cmc/hackathon4/
 | 변경 | 함께 수정 |
 | --- | --- |
 | 새 도메인 | `domain/{도메인}/{controller,service,repository,entity,converter,dto}/` 클래스들, 필요하면 `ErrorCode` (`{도메인}-{상태}` 형식) |
+| 새 에러 코드 / 서비스가 던지는 에러 변경 | `ErrorCode` + 그 에러를 낼 수 있는 API 의 `XxxApiDocs` `@ApiErrorCodes` (Swagger 전체 표는 자동) |
 | 운영 환경변수 추가 | `application-prod.yml` + GitHub Secret `APP_ENV` + `docs/deploy.md` 의 APP_ENV 예시 |
 | 로컬 환경변수 추가 | `application-local.yml` + `.env.example` + `docs/local-dev.md` |
 | 인프라 구성요소 추가 (예: Redis) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
