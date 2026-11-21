@@ -25,6 +25,7 @@ public interface AssignmentApiDocs {
 	@Operation(summary = "덜어가기", description = "같은 집 구성원의 TODO 짐을 승인 없이 내 짐으로 가져온다. 원래 담당자에게 CHORE_RELIEVED 알림이 간다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "덜어가기 성공")
 	@ApiErrorCodes({ ErrorCode.ASSIGNMENT_OWN_RELIEVE, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.ASSIGNMENT_NOT_FOUND, ErrorCode.ASSIGNMENT_ALREADY_DONE, ErrorCode.ASSIGNMENT_REQUEST_PENDING, ErrorCode.PERIOD_ENDED })
+	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED, when = "덜어가는 사람의 남은 짐이 이미 5개")
 	ApiResponse<TransferRelieveResponse> relieve(User user,
 			@Parameter(description = "덜어갈 짐 ID", example = "5") Long assignmentId);
 

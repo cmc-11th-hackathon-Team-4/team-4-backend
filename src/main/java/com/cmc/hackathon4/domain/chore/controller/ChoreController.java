@@ -11,6 +11,7 @@ import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,6 +51,14 @@ public class ChoreController implements ChoreApiDocs {
 	public ApiResponse<ChoreCreateResponse> createChore(@CurrentUser User user, @PathVariable Long houseId,
 			@Valid @RequestBody ChoreCreateRequest request) {
 		return ApiResponse.ok(choreService.createChore(houseId, user.getId(), request));
+	}
+
+	@Override
+	@DeleteMapping("/houses/{houseId}/chores/{choreId}")
+	public ApiResponse<Void> deleteChore(@CurrentUser User user, @PathVariable Long houseId,
+			@PathVariable Long choreId) {
+		choreService.deleteChore(houseId, user.getId(), choreId);
+		return ApiResponse.ok();
 	}
 
 }

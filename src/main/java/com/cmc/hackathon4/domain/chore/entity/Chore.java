@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 @Getter
 @Entity
@@ -36,10 +37,21 @@ public class Chore extends BaseTimeEntity {
 	@Column(name = "is_active", nullable = false)
 	private boolean active;
 
+	// 시작한 뒤 추가된, 그 기간(주)에만 유효한 집안일. 기간이 끝나면 비활성화된다.
+	// 이미 행이 있는 테이블에 추가되는 컬럼이라 기본값을 둔다 (기존 집안일은 false)
+	@ColumnDefault("false")
+	@Column(name = "is_temporary", nullable = false)
+	private boolean temporary;
+
 	public Chore(House house, String name) {
+		this(house, name, false);
+	}
+
+	public Chore(House house, String name, boolean temporary) {
 		this.house = house;
 		this.name = name;
 		this.active = true;
+		this.temporary = temporary;
 	}
 
 	public void deactivate() {

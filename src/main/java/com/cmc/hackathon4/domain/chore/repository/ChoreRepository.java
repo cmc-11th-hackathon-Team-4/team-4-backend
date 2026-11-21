@@ -11,6 +11,8 @@ public interface ChoreRepository extends JpaRepository<Chore, Long> {
 
 	boolean existsByHouseIdAndNameAndActiveTrue(Long houseId, String name);
 
+	long countByHouseIdAndActiveTrue(Long houseId);
+
 	List<Chore> findAllByHouseId(Long houseId);
 
 }

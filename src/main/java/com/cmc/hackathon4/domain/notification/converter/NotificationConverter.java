@@ -25,6 +25,7 @@ public final class NotificationConverter {
 				actor == null ? null
 						: new NotificationResponse.Actor(actor.getId(), actor.getName(), actor.getCharacterType()),
 				transfer == null ? null : transfer.getId(),
+				transfer == null ? null : transfer.getAssignment().getChore().getName(),
 				notification.getMessage(),
 				hearted,
 				notification.getReadAt(),

@@ -58,7 +58,8 @@ public final class PeriodConverter {
 		}).toList();
 
 		List<SettlementResponse.MyUndone> myUndone = assignments.stream()
-				.filter(assignment -> !assignment.isDone() && assignment.getAssignee().getId().equals(myUserId))
+				.filter(assignment -> !assignment.isDone() && !assignment.getChore().isTemporary()
+						&& assignment.getAssignee().getId().equals(myUserId))
 				.map(assignment -> new SettlementResponse.MyUndone(assignment.getId(),
 						assignment.getChore().getName(),
 						assignment.getCarryChoice() == null ? CarryChoice.KEEP : assignment.getCarryChoice()))

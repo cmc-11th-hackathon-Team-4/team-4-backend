@@ -56,9 +56,9 @@ class PeriodServiceTest {
 	@Autowired
 	PeriodService periodService;
 	@Autowired
-	DistributionService distributionService;
-	@Autowired
 	ChoreService choreService;
+	@Autowired
+	DistributionService distributionService;
 	@Autowired
 	UserRepository userRepository;
 	@Autowired
@@ -353,6 +353,27 @@ class PeriodServiceTest {
 				.isEqualTo(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
 	}
 
+	@Test
+	void 시작한_뒤_추가한_집안일은_기간이_끝나면_비활성화되고_다음_배분에서_빠진다() {
+		Long periodId = startFirstPeriod();
+		Long addedChoreId = choreService.createChore(houseId, member1Id, new ChoreCreateRequest("임시 집안일")).chore().id();
+
+		periodService.end(houseId, ownerId);
+
+		assertThat(choreRepository.findById(addedChoreId).orElseThrow().isActive()).isFalse();
+		// 결산에는 그대로 보이지만 내 못 한 일(이월 선택 대상)에서는 빠진다
+		SettlementResponse settlement = periodService.getSettlement(periodId, member1Id);
+		assertThat(settlement.chores()).extracting(SettlementResponse.Chore::name).contains("임시 집안일");
+		assertThat(settlement.summary().totalCount()).isEqualTo(8);
+		assertThat(settlement.myUndone()).extracting(SettlementResponse.MyUndone::name).doesNotContain("임시 집안일");
+
+		NextPeriodResponse next = periodService.createNext(houseId, ownerId);
+		assertThat(next.totalCount()).isEqualTo(7);
+		assertThat(next.members().stream().flatMap(member -> member.chores().stream()))
+				.extracting(NextPeriodResponse.Chore::choreId)
+				.doesNotContain(addedChoreId);
+	}
+
 	// Regression: ISSUE-004 — 다음 기간이 준비된 뒤 추가한 집안일이 다음 회차 배분에서 빠지던 문제
 	// Found by /qa on 2026-11-22
 	@Test
@@ -385,6 +406,40 @@ class PeriodServiceTest {
 
 		assertThat(started.period().startDate()).isEqualTo(today);
 		assertThat(started.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+	}
+
+	@Test
+	void 기간_사이에_추가한_집안일은_임시로_다음_기간에_배분되고_그_기간이_끝나면_비활성화된다() {
+		startFirstPeriod();
+		periodService.end(houseId, ownerId);
+		Long nextPeriodId = periodService.createNext(houseId, ownerId).period().id();
+
+		Long choreId = choreService.createChore(houseId, member1Id, new ChoreCreateRequest("화분 물주기")).chore().id();
+
+		Chore added = choreRepository.findById(choreId).orElseThrow();
+		assertThat(added.isTemporary()).isTrue();
+		assertThat(assignmentRepository.findAllByPeriodIdOrderByIdAsc(nextPeriodId))
+				.extracting(a -> a.getChore().getId())
+				.containsOnlyOnce(choreId);
+
+		periodService.startNext(houseId, ownerId);
+		periodService.end(houseId, ownerId);
+
+		assertThat(choreRepository.findById(choreId).orElseThrow().isActive()).isFalse();
+	}
+
+	@Test
+	void 기간_사이에도_활성_집안일이_10개면_추가할_수_없다() {
+		startFirstPeriod();
+		periodService.end(houseId, ownerId);
+		long active = choreRepository.countByHouseIdAndActiveTrue(houseId);
+		for (long i = active; i < 10; i++) {
+			choreService.createChore(houseId, ownerId, new ChoreCreateRequest("추가" + i));
+		}
+
+		assertThatThrownBy(() -> choreService.createChore(houseId, ownerId, new ChoreCreateRequest("초과")))
+				.extracting(e -> ((BusinessException) e).getErrorCode())
+				.isEqualTo(ErrorCode.CHORE_LIMIT_EXCEEDED);
 	}
 
 	private Long startFirstPeriod() {

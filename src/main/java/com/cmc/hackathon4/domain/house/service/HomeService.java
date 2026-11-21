@@ -2,7 +2,6 @@ package com.cmc.hackathon4.domain.house.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -81,7 +80,9 @@ public class HomeService {
 						.map(NotificationConverter::toResponse).toList());
 	}
 
-	/** #18 상대 상세 조회. 상대의 남은(TODO) 짐만, 부탁 중인 짐은 requestPending = true. */
+	/**
+	 * #18 상대 상세 조회. 상대의 남은(TODO) 짐만, 부탁 중인 짐은 requestPending = true 이고 pendingRequest 에 받는 사람을 담는다.
+	 */
 	public MemberDetailResponse getMemberDetail(Long houseId, Long userId, Long targetUserId) {
 		houseMemberValidator.getMember(houseId, userId);
 		User target = userRepository.findById(targetUserId)
@@ -98,13 +99,22 @@ public class HomeService {
 		List<Assignment> todos = assignmentRepository.findAllByPeriodIdOrderByIdAsc(period.getId()).stream()
 				.filter(a -> a.getStatus() == AssignmentStatus.TODO && a.getAssignee().getId().equals(targetUserId))
 				.toList();
-		Set<Long> pendingAssignmentIds = todos.isEmpty() ? Set.of()
-				: transferRepository
-						.findAllByAssignmentIdInAndStatus(todos.stream().map(Assignment::getId).toList(),
-								TransferStatus.PENDING)
-						.stream().map(t -> t.getAssignment().getId()).collect(Collectors.toSet());
-		return HomeConverter.toMemberDetail(target, todos.stream()
-				.map(a -> HomeConverter.toMemberAssignment(a, pendingAssignmentIds.contains(a.getId()))).toList());
+		if (todos.isEmpty()) {
+			return HomeConverter.toMemberDetail(target, List.of());
+		}
+
+		// 부탁 받는 사람 이름은 구성원 목록에서 찾는다(행마다 지연 로딩하지 않도록 한 번만 조회).
+		Map<Long, User> users = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId).stream()
+				.map(HouseMember::getUser).collect(Collectors.toMap(User::getId, Function.identity()));
+		Map<Long, Transfer> pendingByAssignment = transferRepository
+				.findAllByAssignmentIdInAndStatus(todos.stream().map(Assignment::getId).toList(),
+						TransferStatus.PENDING)
+				.stream().collect(Collectors.toMap(t -> t.getAssignment().getId(), Function.identity(), (a, b) -> a));
+		return HomeConverter.toMemberDetail(target, todos.stream().map(a -> {
+			Transfer pending = pendingByAssignment.get(a.getId());
+			return HomeConverter.toMemberAssignment(a, pending,
+					pending == null ? null : users.get(pending.getToUser().getId()));
+		}).toList());
 	}
 
 	/** 내 TODO 짐. 기간이 ENDED(결산 대기)면 빈 배열. */

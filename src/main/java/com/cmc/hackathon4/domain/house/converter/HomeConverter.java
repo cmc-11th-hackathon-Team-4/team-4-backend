@@ -49,10 +49,14 @@ public final class HomeConverter {
 				assignments.size(), assignments);
 	}
 
-	public static MemberDetailResponse.MemberAssignment toMemberAssignment(Assignment assignment,
-			boolean requestPending) {
+	/** pending 이 null 이면 부탁 중이 아니다. toUser 는 pending 의 받는 사람(구성원 목록에서 찾아 넘긴다). */
+	public static MemberDetailResponse.MemberAssignment toMemberAssignment(Assignment assignment, Transfer pending,
+			User toUser) {
+		MemberDetailResponse.PendingRequest pendingRequest = pending == null ? null
+				: new MemberDetailResponse.PendingRequest(toUser.getId(), toUser.getName());
 		return new MemberDetailResponse.MemberAssignment(assignment.getId(), assignment.getChore().getId(),
-				assignment.getChore().getName(), assignment.getStatus(), assignment.isCarriedOver(), requestPending);
+				assignment.getChore().getName(), assignment.getStatus(), assignment.isCarriedOver(),
+				pending != null, pendingRequest);
 	}
 
 	public static HomeResponse.ReceivedRequest toReceivedRequest(Transfer transfer) {

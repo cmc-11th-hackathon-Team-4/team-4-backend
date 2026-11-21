@@ -18,6 +18,7 @@ public interface TransferApiDocs {
 	@Operation(summary = "부탁 받기", description = "받은 부탁을 수락한다. 받는 사람만 가능하며 짐의 담당자가 나로 바뀐다. 부탁한 사람에게 REQUEST_ACCEPTED 알림이 간다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수락 성공")
 	@ApiErrorCodes({ ErrorCode.TRANSFER_NOT_MINE, ErrorCode.TRANSFER_NOT_FOUND, ErrorCode.TRANSFER_ALREADY_HANDLED })
+	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED, when = "받는 사람의 남은 짐이 이미 5개")
 	ApiResponse<TransferAcceptResponse> accept(User user,
 			@Parameter(description = "부탁(transfer) ID", example = "2") Long transferId);
 
@@ -31,6 +32,7 @@ public interface TransferApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소·되돌리기 성공")
 	@ApiErrorCodes({ ErrorCode.TRANSFER_NOT_FOUND, ErrorCode.TRANSFER_ALREADY_HANDLED, ErrorCode.PERIOD_ENDED })
 	@ApiErrorCase(code = ErrorCode.TRANSFER_NOT_MINE, when = "취소·되돌릴 권한 없음")
+	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED, when = "덜어가기 되돌리기 시 원래 담당자의 남은 짐이 이미 5개")
 	ApiResponse<Void> cancel(User user, @Parameter(description = "부탁(transfer) ID", example = "1") Long transferId);
 
 	@Operation(summary = "하트로 고마움 전하기", description = "덜어가기(RELIEVE)를 한 사람에게 하트를 보낸다. 원래 담당자만, 한 번만 가능하며 덜어간 사람에게 HEART_RECEIVED 알림이 간다. 내 CHORE_RELIEVED 알림은 읽음 처리된다.")

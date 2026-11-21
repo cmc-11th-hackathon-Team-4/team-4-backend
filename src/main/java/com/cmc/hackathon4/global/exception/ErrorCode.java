@@ -37,6 +37,7 @@ public enum ErrorCode {
 	// 집안일
 	CHORE_NOT_FOUND(HttpStatus.NOT_FOUND, "CHORE-404", "집안일을 찾을 수 없습니다."),
 	CHORE_DUPLICATED(HttpStatus.CONFLICT, "CHORE-409", "이미 있는 집안일입니다."),
+	CHORE_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "CHORE-409-1", "진행 중인 집안일은 최대 10개까지 둘 수 있습니다."),
 
 	// 기간
 	PERIOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PERIOD-404", "진행 중인 기간이 없습니다."),
@@ -51,6 +52,7 @@ public enum ErrorCode {
 	ASSIGNMENT_OWN_RELIEVE(HttpStatus.BAD_REQUEST, "ASSIGNMENT-400", "내 짐은 덜어갈 수 없습니다."),
 	ASSIGNMENT_ALREADY_DONE(HttpStatus.CONFLICT, "ASSIGNMENT-409", "이미 완료된 짐입니다."),
 	ASSIGNMENT_REQUEST_PENDING(HttpStatus.CONFLICT, "ASSIGNMENT-409-1", "이미 부탁 중인 짐입니다."),
+	ASSIGNMENT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "ASSIGNMENT-409-2", "한 사람이 가질 수 있는 짐은 최대 5개입니다."),
 
 	// 짐 이동
 	TRANSFER_NOT_FOUND(HttpStatus.NOT_FOUND, "TRANSFER-404", "요청을 찾을 수 없습니다."),
