@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.transfer.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
 import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
@@ -30,5 +31,10 @@ public interface TransferRepository extends JpaRepository<Transfer, Long> {
 
 	/** 내가 받은 하트 수: 내가 덜어간(toUser) 이동 중 하트가 찍힌 것 */
 	long countByToUserIdAndHeartedAtIsNotNull(Long toUserId);
+
+	/** 이동 하나. 짐(기간·집·집안일·담당자)과 보낸·받는 사람을 함께 가져온다. */
+	@EntityGraph(attributePaths = {"assignment", "assignment.period", "assignment.chore", "assignment.assignee",
+			"fromUser", "toUser"})
+	Optional<Transfer> findWithDetailsById(Long id);
 
 }

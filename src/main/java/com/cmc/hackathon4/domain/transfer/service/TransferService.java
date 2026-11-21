@@ -9,6 +9,7 @@ import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.transfer.converter.TransferConverter;
+import com.cmc.hackathon4.domain.transfer.dto.TransferAcceptResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
 import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
@@ -88,6 +89,39 @@ public class TransferService {
 		User toUser = getUser(toUserId);
 		Transfer transfer = transferRepository.save(Transfer.request(assignment, me, toUser));
 		return TransferConverter.toStatusResponse(transfer);
+	}
+
+	/** 부탁 받기(#22). 받는 사람만 가능. 담당자가 나로 바뀌고 부탁한 사람에게 REQUEST_ACCEPTED 알림이 간다. */
+	@Transactional
+	public TransferAcceptResponse accept(Long userId, Long transferId) {
+		User me = getUser(userId);
+		Transfer transfer = getReceivedPendingTransfer(userId, transferId);
+		Assignment assignment = transfer.getAssignment();
+		transfer.accept(Instant.now());
+		assignment.changeAssignee(me);
+		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_ACCEPTED,
+				me.getName() + "가 " + assignment.getChore().getName() + "를 받았어요");
+		return TransferConverter.toAcceptResponse(transfer);
+	}
+
+	/** 내가 받은 PENDING 부탁을 찾는다. 없으면 404, 받는 사람이 아니면 403, PENDING 이 아니면 409. */
+	private Transfer getReceivedPendingTransfer(Long userId, Long transferId) {
+		Transfer transfer = getTransfer(transferId);
+		if (!transfer.getToUser().getId().equals(userId)) {
+			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+		}
+		if (!transfer.isPending()) {
+			throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
+		}
+		if (transfer.getAssignment().getPeriod().isEnded()) {
+			throw new BusinessException(ErrorCode.PERIOD_ENDED);
+		}
+		return transfer;
+	}
+
+	private Transfer getTransfer(Long transferId) {
+		return transferRepository.findWithDetailsById(transferId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND));
 	}
 
 	private User getUser(Long userId) {
