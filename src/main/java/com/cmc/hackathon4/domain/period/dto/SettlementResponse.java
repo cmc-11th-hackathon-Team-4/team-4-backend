@@ -13,7 +13,7 @@ public record SettlementResponse(PeriodResponse period, List<UserInfo> members, 
 	public record UserInfo(Long userId, String name, CharacterType characterType) {
 	}
 
-	/** helpedCount 는 기간 안의 ACCEPTED transfer 수(덜어가기 + 받아준 짐 올리기). */
+	/** helpedCount 는 도움으로 인정된 짐 수. 짐마다 마지막 ACCEPTED 이동만 보고, 받은 사람이 최초 담당자면 세지 않는다 (Ranking 과 같은 기준). */
 	public record Summary(int totalCount, int doneCount, int undoneCount, int helpedCount) {
 	}
 
@@ -32,6 +32,7 @@ public record SettlementResponse(PeriodResponse period, List<UserInfo> members, 
 	public record Kindness(List<Ranking> ranking, List<Long> kingUserIds) {
 	}
 
+	/** helpedCount 는 도움으로 인정된 짐 수, receivedHeartCount 는 그중 그 사람에게 하트가 찍힌 짐 수(짐당 최대 1). */
 	public record Ranking(Long userId, String name, CharacterType characterType, int helpedCount,
 			int receivedHeartCount) {
 	}

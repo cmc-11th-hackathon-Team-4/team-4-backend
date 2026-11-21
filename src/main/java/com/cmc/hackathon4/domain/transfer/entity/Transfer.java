@@ -97,6 +97,11 @@ public class Transfer extends BaseTimeEntity {
 		this.heartedAt = now;
 	}
 
+	/** 되돌린 덜어가기의 하트는 무효다. 하트 수·알림의 hearted 에서 빠지도록 지운다. */
+	public void revokeHeart() {
+		this.heartedAt = null;
+	}
+
 	public boolean isPending() {
 		return status == TransferStatus.PENDING;
 	}

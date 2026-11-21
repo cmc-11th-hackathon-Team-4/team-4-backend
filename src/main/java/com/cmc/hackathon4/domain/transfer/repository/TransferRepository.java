@@ -16,6 +16,9 @@ public interface TransferRepository extends JpaRepository<Transfer, Long> {
 	/** 짐에 특정 상태의 이동이 있는지. "짐 하나에 PENDING 부탁은 하나만" 검사에 쓴다. */
 	boolean existsByAssignmentIdAndStatus(Long assignmentId, TransferStatus status);
 
+	/** 내가 넘긴(fromUser) 특정 상태의 이동이 그 짐에 있는지. "내 손을 떠난 짐은 덜어가기로 되가져오지 않는다" 검사에 쓴다. */
+	boolean existsByAssignmentIdAndFromUserIdAndStatus(Long assignmentId, Long fromUserId, TransferStatus status);
+
 	List<Transfer> findAllByAssignmentIdAndStatus(Long assignmentId, TransferStatus status);
 
 	List<Transfer> findAllByAssignmentIdInAndStatus(Collection<Long> assignmentIds, TransferStatus status);
