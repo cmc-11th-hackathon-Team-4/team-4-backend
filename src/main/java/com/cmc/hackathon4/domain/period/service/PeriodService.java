@@ -1,5 +1,6 @@
 package com.cmc.hackathon4.domain.period.service;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
@@ -8,11 +9,14 @@ import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
+import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
+import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
@@ -30,6 +34,7 @@ public class PeriodService {
 	private final HouseMemberRepository houseMemberRepository;
 	private final PeriodRepository periodRepository;
 	private final NotificationService notificationService;
+	private final TransferRepository transferRepository;
 
 	/** 진행 중인 기간의 결산일을 days 만큼 늦추고 방장 제외 전원에게 PERIOD_EXTENDED 알림을 보낸다. */
 	@Transactional
@@ -43,6 +48,26 @@ public class PeriodService {
 		notificationService.sendAll(membersExcept(houseId, userId), owner.getUser(), null,
 				NotificationType.PERIOD_EXTENDED, message);
 		return PeriodConverter.toExtendResponse(period);
+	}
+
+	/**
+	 * 진행 중인 기간을 종료한다. PENDING 부탁은 전부 CANCELED, 전원(방장 포함)에게 PERIOD_ENDED 알림. 다음 기간은 만들지 않는다.
+	 */
+	@Transactional
+	public PeriodEndResponse end(Long houseId, Long userId) {
+		houseMemberValidator.getOwner(houseId, userId);
+		Period period = getActivePeriod(houseId);
+		Instant now = Instant.now();
+		period.end(now);
+		transferRepository.findAllByPeriodIdAndStatus(period.getId(), TransferStatus.PENDING)
+				.forEach(transfer -> transfer.cancel(now));
+
+		List<User> everyone = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId)
+				.stream()
+				.map(HouseMember::getUser)
+				.toList();
+		notificationService.sendAll(everyone, null, null, NotificationType.PERIOD_ENDED, "이번 주 결산이 도착했어요");
+		return PeriodConverter.toEndResponse(period);
 	}
 
 	private Period getActivePeriod(Long houseId) {

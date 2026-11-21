@@ -1,5 +1,6 @@
 package com.cmc.hackathon4.domain.period.controller;
 
+import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -18,5 +19,11 @@ public interface PeriodApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404) / 진행 중인 기간 없음 (PERIOD-404)")
 	ApiResponse<PeriodExtendResponse> extend(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			PeriodExtendRequest request);
+
+	@Operation(summary = "기간 종료하기", description = "시연용. 방장이 진행 중인 기간을 ENDED 로 바꾸고 PENDING 부탁을 모두 CANCELED 처리한다. 전원(방장 포함)에게 PERIOD_ENDED 알림이 가고 다음 기간은 만들지 않는다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "종료 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404) / 진행 중인 기간 없음 (PERIOD-404)")
+	ApiResponse<PeriodEndResponse> end(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
 }
