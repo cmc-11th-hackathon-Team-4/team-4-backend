@@ -103,16 +103,26 @@ public class HouseService {
 		return HouseConverter.toDetailResponse(house, members, userId, choreCount, findCurrentPeriod(house));
 	}
 
-	/** 보낸 필드만 수정한다. 주기는 다음 기간부터 적용되므로 진행 중 기간은 건드리지 않는다. */
-	@Transactional
+	/**
+	 * 보낸 필드만 수정한다. 주기는 다음 기간부터 적용되므로 진행 중 기간은 건드리지 않는다. 배분 확인 중(DISTRIBUTING)이면 아직 시작 전인 1회차 기간의 종료일을 새
+	 * 주기로 다시 계산한다.
+	 */
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public HouseUpdateResponse update(Long houseId, Long userId, HouseUpdateRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
-		House house = findHouse(houseId);
+		// 배분 만들기·확정과 겹치지 않도록 집 행을 잠근다.
+		House house = houseRepository.findByIdForUpdate(houseId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
 		if (request.name() != null) {
 			house.rename(request.name().trim());
 		}
 		if (request.settlementCycle() != null) {
 			house.changeSettlementCycle(request.settlementCycle());
+			if (house.getStatus() == HouseStatus.DISTRIBUTING) {
+				periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
+						.ifPresent(ready -> ready.reschedule(ready.getStartDate(),
+								request.settlementCycle().endDateFrom(ready.getStartDate())));
+			}
 		}
 		return HouseConverter.toUpdateResponse(house);
 	}

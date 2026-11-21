@@ -44,6 +44,9 @@ public class AssignmentService {
 		if (assignment.getPeriod().isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
 		}
+		if (!assignment.getPeriod().isActive()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_STARTED);
+		}
 		Instant now = Instant.now();
 		assignment.complete(now);
 		for (Transfer pending : transferRepository.findAllByAssignmentIdAndStatus(assignmentId,

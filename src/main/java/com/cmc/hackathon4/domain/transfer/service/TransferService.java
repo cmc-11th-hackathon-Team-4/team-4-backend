@@ -62,6 +62,9 @@ public class TransferService {
 		if (assignment.getPeriod().isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
 		}
+		if (!assignment.getPeriod().isActive()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_STARTED);
+		}
 		if (transferRepository.existsByAssignmentIdAndStatus(assignmentId, TransferStatus.PENDING)) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_REQUEST_PENDING);
 		}
@@ -90,6 +93,9 @@ public class TransferService {
 		}
 		if (assignment.getPeriod().isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
+		}
+		if (!assignment.getPeriod().isActive()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_STARTED);
 		}
 		if (transferRepository.existsByAssignmentIdAndStatus(assignmentId, TransferStatus.PENDING)) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_REQUEST_PENDING);
@@ -163,6 +169,9 @@ public class TransferService {
 		if (assignment.getPeriod().isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
 		}
+		if (!assignment.getPeriod().isActive()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_STARTED);
+		}
 		// 짐이 돌아가는 원래 담당자의 짐이 이미 한도라면 되돌릴 수 없다
 		checkAssignmentLimit(assignment.getPeriod().getId(), transfer.getFromUser().getId());
 		// 가져간 사람이 그 짐을 다시 누구에게 부탁해 둔 상태였다면 함께 취소한다.
@@ -218,6 +227,9 @@ public class TransferService {
 		}
 		if (transfer.getAssignment().getPeriod().isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
+		}
+		if (!transfer.getAssignment().getPeriod().isActive()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_STARTED);
 		}
 		return transfer;
 	}
