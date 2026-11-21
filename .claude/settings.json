@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "ask": [
+      "Bash(git push origin main)",
+      "Bash(git push origin main *)",
+      "Bash(git push origin HEAD:main*)",
+      "Bash(gh pr merge *)",
+      "Edit(**/application-prod.yml)",
+      "Edit(**/.github/**)",
+      "Edit(**/scripts/**)",
+      "Edit(**/docker-compose.yml)",
+      "Edit(**/src/main/java/com/cmc/hackathon4/global/**)"
+    ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  }
+}

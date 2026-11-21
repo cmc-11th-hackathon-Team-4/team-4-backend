@@ -1,13 +1,32 @@
 # AGENTS.md
 
-Spring Boot 4 / Java 21 / Lombok / JPA + MySQL. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/health`, `global/`).
+Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/health`, `domain/testitem`, `global/`).
+구성·흐름은 `docs/architecture.md`, 로컬 실행은 `docs/local-dev.md`, 배포는 `docs/deploy.md`, 결정 이유는 `docs/adr/`.
 
 ## 필수
-- 작업 후 `./gradlew build` 통과 확인. `main` 은 push 즉시 운영 배포되므로 직접 커밋 금지.
-- 요청 없이 수정 금지: `application-prod.yml`, `.github/`, `scripts/`, `docker-compose.yml`, `global/` 공통 클래스 (`ErrorCode` 추가는 허용).
+- 작업 후 `./gradlew build` 통과 확인. `main` 에 머지(push)되면 즉시 운영 배포되므로 직접 커밋 금지.
+- 요청 없이 수정 금지 (요청으로 수정했다면 PR 본문에 그 사실과 배포 영향을 적는다):
 
-## 구조·이름
-- 도메인별 패키지: `domain/{도메인}/` 에 한 도메인 클래스를 모두 둔다. 공통은 `global/`.
+  | 대상 | 이유 |
+  | --- | --- |
+  | `application-prod.yml` | 운영 설정. 머지 즉시 운영에 반영 |
+  | `.github/` | 배포 파이프라인과 AWS 권한 사용 |
+  | `scripts/` | 운영 서버 설치 내용. 바꾸면 서버에서 다시 실행해야 반영 (`docs/deploy.md`) |
+  | `docker-compose.yml` | 팀 전원의 로컬 환경 |
+  | `global/` 공통 클래스 (`ErrorCode` 추가는 허용) | 모든 도메인에 영향 |
+
+## 디렉터리 구조: 도메인 단위로 분리
+- **기능은 `domain/{도메인}/` 패키지 하나에 모은다.** 그 도메인의 Controller, ApiDocs, Service, Repository, Entity, DTO 를 모두 같은 패키지에 둔다.
+- 계층별 최상위 패키지(`controller/`, `service/`, `repository/`)나 도메인 안의 하위 패키지(`dto/` 등)를 만들지 않는다.
+- 도메인명은 영어 소문자 (예: `user`, `testitem`). `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다.
+
+```
+com/cmc/hackathon4/
+├── domain/{도메인}/   XxxController, XxxApiDocs, XxxService, XxxRepository, Xxx(Entity), XxxCreateRequest, XxxUpdateRequest, XxxResponse
+└── global/           config/, entity/, exception/, response/
+```
+
+## 이름
 - `XxxController`, `XxxApiDocs`, `XxxService`(인터페이스 분리 X), `XxxRepository`, `XxxCreateRequest`/`XxxUpdateRequest`/`XxxResponse`.
 - URL: `/api/v1/{복수형-kebab}`. 응답은 항상 `ApiResponse.ok(...)`.
 
@@ -26,6 +45,18 @@ Spring Boot 4 / Java 21 / Lombok / JPA + MySQL. 기존 코드 패턴을 먼저 �
 - Swagger 어노테이션은 `XxxApiDocs` 인터페이스에만. 컨트롤러는 implements 하고 매핑·로직만.
 - 비밀번호, 토큰, 개인정보, 요청 본문 전체는 로그 금지. BusinessException 은 로그 남기지 않음.
 - 테스트는 서비스 핵심 로직만, 메서드명 한글 허용 (H2 로 실행).
+
+## 변경 시 함께 수정할 곳
+| 변경 | 함께 수정 |
+| --- | --- |
+| 새 도메인 | `domain/{도메인}/` 클래스들, 필요하면 `ErrorCode` (`{도메인}-{상태}` 형식) |
+| 운영 환경변수 추가 | `application-prod.yml` + GitHub Secret `APP_ENV` + `docs/deploy.md` 의 APP_ENV 예시 |
+| 로컬 환경변수 추가 | `application-local.yml` + `.env.example` + `docs/local-dev.md` |
+| 인프라 구성요소 추가 (예: Redis) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
+| 프론트 주소 추가 | `application.yml` 의 `app.cors.allowed-origin-patterns` |
+| `[TEST]` 임시 도메인 삭제 | 도메인 패키지 + `ErrorCode` 항목. DB 테이블은 `ddl-auto` 가 지우지 않으므로 직접 삭제 |
+
+문서 수정 후 `bash scripts/check-docs.sh` 로 문서와 코드가 맞는지 확인한다.
 
 ## 스타일·Git
 - 포맷은 Spotless 가 담당: `./gradlew spotlessApply`.
