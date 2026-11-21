@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -134,7 +135,7 @@ public class PeriodService {
 				.stream()
 				.map(HouseMember::getUser)
 				.toList();
-		notificationService.sendAll(everyone, null, null, NotificationType.PERIOD_ENDED, "이번 주 결산이 도착했어요");
+		notificationService.sendAll(everyone, null, null, NotificationType.PERIOD_ENDED, "이번 결산이 도착했어요");
 	}
 
 	/** 종료된 기간의 결산 상세. 그 집의 구성원만, ENDED 기간만 조회할 수 있다. */
@@ -162,7 +163,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public CarryOverResponse saveCarryOvers(Long periodId, Long userId, CarryOverRequest request) {
 		Long houseId = periodRepository.findHouseIdById(periodId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_ID_NOT_FOUND));
 		houseMemberValidator.getMember(houseId, userId);
 		houseMemberValidator.lockHouse(houseId);
 		Period period = getPeriod(periodId);
@@ -173,12 +174,18 @@ public class PeriodService {
 			throw new BusinessException(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
 		}
 
+		Set<Long> requestedIds = new HashSet<>();
+		if (request.choices().stream().anyMatch(choice -> !requestedIds.add(choice.assignmentId()))) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "choices: 같은 짐을 두 번 선택할 수 없습니다.");
+		}
+		// 결산의 내 못 한 일(myUndone)과 같은 기준이다. 기간 중에 추가한 임시 집안일은 다음 기간으로 넘어가지 않으므로 뺀다.
 		Map<Long, Assignment> myUndone = assignmentRepository
 				.findAllByPeriodIdAndAssigneeIdAndStatusOrderByIdAsc(periodId, userId, AssignmentStatus.TODO)
 				.stream()
+				.filter(assignment -> !assignment.getChore().isTemporary())
 				.collect(Collectors.toMap(Assignment::getId, Function.identity()));
-		if (request.choices().stream().anyMatch(choice -> !myUndone.containsKey(choice.assignmentId()))) {
-			// 남의 짐뿐 아니라 이미 완료한 내 짐도 여기로 온다
+		if (!myUndone.keySet().containsAll(requestedIds)) {
+			// 남의 짐뿐 아니라 이미 완료한 내 짐, 임시 집안일의 짐도 여기로 온다
 			throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_MINE, "내가 못 한 일만 이월할 수 있습니다.");
 		}
 		request.choices().forEach(choice -> myUndone.get(choice.assignmentId()).chooseCarry(choice.choice()));
@@ -315,7 +322,7 @@ public class PeriodService {
 
 	private Period getPeriod(Long periodId) {
 		return periodRepository.findById(periodId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_ID_NOT_FOUND));
 	}
 
 	/** 이 기간보다 뒤 회차 중 READY 가 아닌(시작된) 기간이 있는지 */

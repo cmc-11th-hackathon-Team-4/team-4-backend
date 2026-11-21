@@ -34,15 +34,15 @@ public interface PeriodApiDocs {
 
 	@Operation(summary = "결산 상세 조회", description = "종료(ENDED)된 기간의 결산을 한 번에 조회한다. 결산 숫자, 짐 전체, 내 못 한 일, 배려왕(동점이면 공동, 전원 0이면 빈 배열)이 담긴다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
-	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.PERIOD_NOT_FOUND, ErrorCode.PERIOD_NOT_ENDED })
+	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.PERIOD_ID_NOT_FOUND, ErrorCode.PERIOD_NOT_ENDED })
 	ApiResponse<SettlementResponse> getSettlement(User user,
 			@Parameter(description = "기간 ID", example = "1") Long periodId);
 
-	@Operation(summary = "못 한 일 이월 선택 저장", description = "내 못 한 일마다 다음 주로 가져갈지(KEEP) 덜어낼지(RELEASE) 한 번에 저장한다. 선택하지 않은 짐은 KEEP 으로 취급한다. READY 인 다음 기간이 이미 있으면 그 배분을 다시 만든다.")
+	@Operation(summary = "못 한 일 이월 선택 저장", description = "내 못 한 일마다 다음 기간으로 가져갈지(KEEP) 덜어낼지(RELEASE) 한 번에 저장한다. 선택하지 않은 짐은 KEEP 으로 취급한다. READY 인 다음 기간이 이미 있으면 그 배분을 다시 만든다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
-	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.PERIOD_NOT_FOUND, ErrorCode.PERIOD_NOT_ENDED, ErrorCode.PERIOD_NEXT_ALREADY_STARTED })
-	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "choices 가 비어 있거나 choice 가 KEEP / RELEASE 가 아님")
-	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_NOT_MINE, when = "내 TODO 짐이 아님")
+	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.PERIOD_ID_NOT_FOUND, ErrorCode.PERIOD_NOT_ENDED, ErrorCode.PERIOD_NEXT_ALREADY_STARTED })
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "choices 가 비어 있거나 choice 가 KEEP / RELEASE 가 아니거나 같은 assignmentId 가 두 번 이상 있음")
+	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_NOT_MINE, when = "내 TODO 짐이 아니거나 기간 중에 추가한 임시 집안일의 짐임")
 	ApiResponse<CarryOverResponse> saveCarryOvers(User user,
 			@Parameter(description = "종료된 기간 ID", example = "1") Long periodId, CarryOverRequest request);
 

@@ -42,6 +42,7 @@ public enum ErrorCode {
 	// 기간
 	PERIOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PERIOD-404", "진행 중인 기간이 없습니다."),
 	PERIOD_NEXT_NOT_READY(HttpStatus.NOT_FOUND, "PERIOD-404-1", "준비된 다음 기간이 없습니다."),
+	PERIOD_ID_NOT_FOUND(HttpStatus.NOT_FOUND, "PERIOD-404-2", "기간을 찾을 수 없습니다."),
 	PERIOD_ENDED(HttpStatus.CONFLICT, "PERIOD-409", "이미 종료된 기간입니다."),
 	PERIOD_NOT_ENDED(HttpStatus.CONFLICT, "PERIOD-409-1", "아직 종료되지 않은 기간입니다."),
 	PERIOD_NEXT_ALREADY_STARTED(HttpStatus.CONFLICT, "PERIOD-409-2", "이미 다음 기간이 시작되었습니다."),
