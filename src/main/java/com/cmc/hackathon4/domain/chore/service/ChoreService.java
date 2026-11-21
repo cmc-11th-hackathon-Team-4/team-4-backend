@@ -81,14 +81,15 @@ public class ChoreService {
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
-		if (choreRepository.existsByHouseIdAndNameAndActiveTrue(houseId, request.name())) {
+		String name = request.name().trim();
+		if (choreRepository.existsByHouseIdAndNameAndActiveTrue(houseId, name)) {
 			throw new BusinessException(ErrorCode.CHORE_DUPLICATED);
 		}
 		if (house.getStatus() == HouseStatus.WAITING) {
 			if (choreRepository.countByHouseIdAndActiveTrue(houseId) >= MAX_CHORES_PER_HOUSE) {
 				throw new BusinessException(ErrorCode.CHORE_LIMIT_EXCEEDED);
 			}
-			Chore chore = choreRepository.save(ChoreConverter.toEntity(house, request.name()));
+			Chore chore = choreRepository.save(ChoreConverter.toEntity(house, name));
 			return ChoreConverter.toCreateResponse(chore, null);
 		}
 
@@ -101,7 +102,7 @@ public class ChoreService {
 			if (choreRepository.countByHouseIdAndActiveTrue(houseId) >= MAX_CHORES_PER_HOUSE) {
 				throw new BusinessException(ErrorCode.CHORE_LIMIT_EXCEEDED);
 			}
-			Chore chore = choreRepository.save(ChoreConverter.toTemporaryEntity(house, request.name()));
+			Chore chore = choreRepository.save(ChoreConverter.toTemporaryEntity(house, name));
 			// refreshNextDistribution 이 영속성 컨텍스트를 비우므로 응답을 먼저 만든다
 			ChoreCreateResponse response = ChoreConverter.toCreateResponse(chore, null);
 			periodService.refreshNextDistribution(houseId);
@@ -116,7 +117,7 @@ public class ChoreService {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
 		}
 		User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-		Chore chore = choreRepository.save(ChoreConverter.toTemporaryEntity(house, request.name()));
+		Chore chore = choreRepository.save(ChoreConverter.toTemporaryEntity(house, name));
 		Assignment assignment = assignmentRepository.save(new Assignment(period, chore, user, false));
 		return ChoreConverter.toCreateResponse(chore, assignment);
 	}
@@ -125,7 +126,7 @@ public class ChoreService {
 	 * 구성원 누구나 집안일을 삭제(비활성화)한다. 진행 중(ACTIVE) 기간의 남은(TODO) 짐은 담당자의 짐에서 빠지고
 	 * 걸려 있던 부탁(PENDING)은 취소된다. 완료한 짐은 기록으로 남는다. 다음 기간(READY)에 미리 배분된 짐은 지운다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void deleteChore(Long houseId, Long userId, Long choreId) {
 		houseMemberValidator.getMember(houseId, userId);
 		House house = houseRepository.findByIdForUpdate(houseId)
@@ -168,7 +169,7 @@ public class ChoreService {
 		if (house.getStatus() == HouseStatus.ACTIVE) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);
 		}
-		List<String> names = request.names();
+		List<String> names = request.names().stream().map(String::trim).toList();
 		if (new HashSet<>(names).size() != names.size()) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT);
 		}

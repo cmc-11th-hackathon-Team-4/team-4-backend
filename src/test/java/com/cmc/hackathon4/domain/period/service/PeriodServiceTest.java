@@ -328,6 +328,26 @@ class PeriodServiceTest {
 	}
 
 	@Test
+	void 삭제된_집안일에_대한_도움은_결산에서_세지_않는다() {
+		Long periodId = startFirstPeriod();
+		Assignment ownersOne = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId)
+				.stream()
+				.filter(a -> a.getAssignee().getId().equals(ownerId))
+				.findFirst()
+				.orElseThrow();
+		User member1 = userRepository.findById(member1Id).orElseThrow();
+		transferRepository.save(Transfer.relieve(ownersOne, ownersOne.getAssignee(), member1, Instant.now()));
+		ownersOne.changeAssignee(member1);
+		ownersOne.delete(Instant.now());
+		periodService.end(houseId, ownerId);
+
+		SettlementResponse settlement = periodService.getSettlement(periodId, ownerId);
+
+		assertThat(settlement.summary().helpedCount()).isZero();
+		assertThat(settlement.kindness().kingUserIds()).isEmpty();
+	}
+
+	@Test
 	void 구성원이_아니면_결산을_볼_수_없다() {
 		Long periodId = startFirstPeriod();
 		periodService.end(houseId, ownerId);

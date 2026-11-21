@@ -149,7 +149,11 @@ public class PeriodService {
 		}
 		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
 		List<Assignment> assignments = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId);
-		List<Transfer> accepted = transferRepository.findAllByPeriodIdAndStatus(periodId, TransferStatus.ACCEPTED);
+		// 삭제된 집안일의 짐은 결산에서 빠지므로 그 짐에 대한 도움도 세지 않는다
+		List<Transfer> accepted = transferRepository.findAllByPeriodIdAndStatus(periodId, TransferStatus.ACCEPTED)
+				.stream()
+				.filter(transfer -> !transfer.getAssignment().isDeleted())
+				.toList();
 		return PeriodConverter.toSettlementResponse(period, members, assignments, accepted, userId,
 				isNextPeriodStarted(period));
 	}
