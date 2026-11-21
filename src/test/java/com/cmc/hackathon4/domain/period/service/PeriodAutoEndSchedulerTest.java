@@ -1,0 +1,122 @@
+package com.cmc.hackathon4.domain.period.service;
+
+import java.time.LocalDate;
+
+import com.cmc.hackathon4.domain.assignment.entity.Assignment;
+import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
+import com.cmc.hackathon4.domain.chore.entity.Chore;
+import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
+import com.cmc.hackathon4.domain.house.entity.House;
+import com.cmc.hackathon4.domain.house.entity.HouseMember;
+import com.cmc.hackathon4.domain.house.entity.MemberRole;
+import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
+import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
+import com.cmc.hackathon4.domain.house.repository.HouseRepository;
+import com.cmc.hackathon4.domain.notification.entity.Notification;
+import com.cmc.hackathon4.domain.notification.entity.NotificationType;
+import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
+import com.cmc.hackathon4.domain.period.entity.Period;
+import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
+import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.transfer.entity.Transfer;
+import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
+import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
+import com.cmc.hackathon4.domain.user.entity.CharacterType;
+import com.cmc.hackathon4.domain.user.entity.User;
+import com.cmc.hackathon4.domain.user.repository.UserRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest
+@Transactional
+class PeriodAutoEndSchedulerTest {
+
+	private static final LocalDate START = LocalDate.of(2026, 11, 23);
+	private static final LocalDate END = LocalDate.of(2026, 11, 29);
+
+	@Autowired
+	PeriodAutoEndScheduler scheduler;
+	@Autowired
+	UserRepository userRepository;
+	@Autowired
+	HouseRepository houseRepository;
+	@Autowired
+	HouseMemberRepository houseMemberRepository;
+	@Autowired
+	ChoreRepository choreRepository;
+	@Autowired
+	PeriodRepository periodRepository;
+	@Autowired
+	AssignmentRepository assignmentRepository;
+	@Autowired
+	TransferRepository transferRepository;
+	@Autowired
+	NotificationRepository notificationRepository;
+
+	@Test
+	void 결산일이_지난_기간은_종료되고_PENDING_부탁은_취소되며_전원에게_알림이_간다() {
+		User owner = userRepository.save(new User("auto-end-1", "수아", CharacterType.CHARACTER_1));
+		User member = userRepository.save(new User("auto-end-2", "민지", CharacterType.CHARACTER_3));
+		Period period = activePeriod(owner, member);
+		Chore chore = choreRepository.save(new Chore(period.getHouse(), "설거지"));
+		Assignment assignment = assignmentRepository.save(new Assignment(period, chore, owner, false));
+		Transfer pending = transferRepository.save(Transfer.request(assignment, owner, member));
+
+		int ended = scheduler.endExpiredPeriods(END.plusDays(1));
+
+		assertThat(ended).isEqualTo(1);
+		assertThat(period.getStatus()).isEqualTo(PeriodStatus.ENDED);
+		assertThat(period.getEndedAt()).isNotNull();
+		assertThat(pending.getStatus()).isEqualTo(TransferStatus.CANCELED);
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(owner.getId()))
+				.extracting(Notification::getType)
+				.containsExactly(NotificationType.PERIOD_ENDED);
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(member.getId()))
+				.extracting(Notification::getType)
+				.containsExactly(NotificationType.PERIOD_ENDED);
+	}
+
+	@Test
+	void 결산일_당일에는_종료하지_않는다() {
+		User owner = userRepository.save(new User("auto-end-3", "수아", CharacterType.CHARACTER_1));
+		User member = userRepository.save(new User("auto-end-4", "민지", CharacterType.CHARACTER_3));
+		Period period = activePeriod(owner, member);
+
+		int ended = scheduler.endExpiredPeriods(END);
+
+		assertThat(ended).isZero();
+		assertThat(period.getStatus()).isEqualTo(PeriodStatus.ACTIVE);
+	}
+
+	@Test
+	void 이미_종료된_기간과_시작_전_기간은_건드리지_않는다() {
+		User owner = userRepository.save(new User("auto-end-5", "수아", CharacterType.CHARACTER_1));
+		User member = userRepository.save(new User("auto-end-6", "민지", CharacterType.CHARACTER_3));
+		Period ended = activePeriod(owner, member);
+		scheduler.endExpiredPeriods(END.plusDays(1));
+		Period ready = periodRepository.save(new Period(ended.getHouse(), 2, END.plusDays(1),
+				SettlementCycle.WEEKLY.endDateFrom(END.plusDays(1))));
+
+		int endedAgain = scheduler.endExpiredPeriods(END.plusDays(30));
+
+		assertThat(endedAgain).isZero();
+		assertThat(ready.getStatus()).isEqualTo(PeriodStatus.READY);
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(owner.getId())).hasSize(1);
+	}
+
+	private Period activePeriod(User owner, User member) {
+		House house = houseRepository.save(new House("302호 우리집", "AE" + owner.getId() % 10000));
+		house.startDistributing(SettlementCycle.WEEKLY);
+		house.activate();
+		houseMemberRepository.save(new HouseMember(house, owner, MemberRole.OWNER));
+		houseMemberRepository.save(new HouseMember(house, member, MemberRole.MEMBER));
+		Period period = periodRepository.save(new Period(house, 1, START, END));
+		period.start();
+		return period;
+	}
+
+}
