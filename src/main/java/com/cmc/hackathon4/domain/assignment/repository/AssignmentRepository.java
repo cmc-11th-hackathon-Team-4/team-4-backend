@@ -31,4 +31,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 	@EntityGraph(attributePaths = {"period", "period.house", "chore", "assignee"})
 	Optional<Assignment> findWithDetailsById(Long id);
 
+	/** 짐이 속한 집의 id. 엔티티를 읽기 전에 집 행을 먼저 잠글 때 쓴다. */
+	@Query("select a.period.house.id from Assignment a where a.id = :id")
+	Optional<Long> findHouseIdById(@Param("id") Long id);
+
 }

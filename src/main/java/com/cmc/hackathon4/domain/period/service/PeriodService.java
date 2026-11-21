@@ -18,6 +18,7 @@ import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
+import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
@@ -41,6 +42,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 결산 API(#27 기간 늘리기, #28 기간 종료, #30 결산 조회, #31 이월 선택, #32·#38·#33 다음 주기). */
@@ -51,6 +53,7 @@ public class PeriodService {
 
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
+	private final HouseRepository houseRepository;
 	private final PeriodRepository periodRepository;
 	private final NotificationService notificationService;
 	private final TransferRepository transferRepository;
@@ -59,13 +62,14 @@ public class PeriodService {
 	private final ChoreDistributor choreDistributor;
 
 	/** 진행 중인 기간의 결산일을 days 만큼 늦추고 방장 제외 전원에게 PERIOD_EXTENDED 알림을 보낸다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodExtendResponse extend(Long houseId, Long userId, PeriodExtendRequest request) {
 		// 요청 검증이 권한 검사보다 먼저였던 기존 순서(@Valid)를 유지한다
 		if (!List.of(1, 3, 7).contains(request.days())) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT, "days: 늘릴 일수는 1, 3, 7 중 하나여야 합니다.");
 		}
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
+		lockHouse(houseId);
 		Period period = getActivePeriod(houseId);
 		period.extend(request.days());
 
@@ -79,9 +83,10 @@ public class PeriodService {
 	/**
 	 * 진행 중인 기간을 종료한다. PENDING 부탁은 전부 CANCELED, 전원(방장 포함)에게 PERIOD_ENDED 알림. 다음 기간은 만들지 않는다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodEndResponse end(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
+		lockHouse(houseId);
 		Period period = getActivePeriod(houseId);
 		endPeriod(period, Instant.now());
 		return PeriodConverter.toEndResponse(period);
@@ -99,8 +104,13 @@ public class PeriodService {
 	 * 결산일이 지난 기간을 #28 과 같은 방식으로 종료한다. 그 사이 방장이 직접 종료했거나 기간을 늘렸으면 아무것도 하지 않는다.
 	 * @return 실제로 종료했으면 true
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public boolean endIfExpired(Long periodId, LocalDate today) {
+		Long houseId = periodRepository.findHouseIdById(periodId).orElse(null);
+		if (houseId == null) {
+			return false;
+		}
+		lockHouse(houseId);
 		Period period = periodRepository.findById(periodId).orElse(null);
 		if (period == null || period.getStatus() != PeriodStatus.ACTIVE || !period.getEndDate().isBefore(today)) {
 			return false;
@@ -139,11 +149,13 @@ public class PeriodService {
 	/**
 	 * 내 못 한 일의 이월 선택(KEEP/RELEASE)을 저장한다. 기간이 ENDED 이고 다음 기간이 시작되기 전일 때만 가능하며, READY 인 다음 기간이 이미 있으면 그 배분을 새 선택으로 다시 만든다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public CarryOverResponse saveCarryOvers(Long periodId, Long userId, CarryOverRequest request) {
-		Period period = getPeriod(periodId);
-		Long houseId = period.getHouse().getId();
+		Long houseId = periodRepository.findHouseIdById(periodId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
 		houseMemberValidator.getMember(houseId, userId);
+		lockHouse(houseId);
+		Period period = getPeriod(periodId);
 		if (!period.isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_NOT_ENDED);
 		}
@@ -209,9 +221,10 @@ public class PeriodService {
 	/**
 	 * 직전 기간(ENDED)을 기준으로 다음 회차 기간(READY)을 만들고, 이미 있으면 배분만 새로 만든다. 이월(KEEP)된 짐은 그대로 두고 나머지만 다시 섞인다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public NextPeriodResponse createNext(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
+		lockHouse(houseId);
 		Period previous = getPreviousEndedPeriod(houseId);
 		Period next = findReadyNext(houseId, previous).orElseGet(() -> {
 			LocalDate startDate = previous.getEndDate().plusDays(1);
@@ -236,9 +249,10 @@ public class PeriodService {
 	}
 
 	/** 저장된 다음 기간(READY)을 ACTIVE 로 시작하고 방장 제외 전원에게 PERIOD_STARTED 알림을 보낸다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodStartResponse startNext(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
+		lockHouse(houseId);
 		if (periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.ACTIVE).isPresent()) {
 			throw new BusinessException(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
 		}
@@ -268,6 +282,11 @@ public class PeriodService {
 	private Optional<Period> findReadyNext(Long houseId, Period previous) {
 		return periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
 				.filter(ready -> ready.getRound() > previous.getRound());
+	}
+
+	/** 같은 집에 대한 쓰기(연장·종료·이월·다음 기간)가 겹치지 않도록 집 행을 잠근다. */
+	private void lockHouse(Long houseId) {
+		houseRepository.findByIdForUpdate(houseId).orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
 	}
 
 	private Period getPeriod(Long periodId) {

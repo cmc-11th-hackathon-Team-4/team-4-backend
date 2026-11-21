@@ -26,6 +26,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -58,7 +59,7 @@ public class ChoreService {
 	 * 노션에 없는 경우의 선택: DISTRIBUTING 이면 배분 미리보기가 어긋나므로 HOUSE-409-2, ACTIVE 인데 진행 중(ACTIVE)
 	 * 기간이 없지만 지난 기간(ENDED 등)이 있으면 집안일만 만들고 assignment 는 null, 기간이 아예 없으면 PERIOD-404.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreCreateResponse createChore(Long houseId, Long userId, ChoreCreateRequest request) {
 		houseMemberValidator.getMember(houseId, userId);
 		House house = houseRepository.findByIdForUpdate(houseId)
@@ -87,7 +88,7 @@ public class ChoreService {
 	}
 
 	/** 방장이 집안일 목록을 통째로 교체한다. WAITING 에는 짐이 없어 기존 행을 지우고 새로 저장해도 된다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreListResponse replaceChores(Long houseId, Long userId, ChoreBulkSaveRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
 		House house = houseRepository.findByIdForUpdate(houseId)

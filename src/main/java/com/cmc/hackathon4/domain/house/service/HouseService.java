@@ -27,6 +27,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -56,16 +57,14 @@ public class HouseService {
 		return HouseConverter.toCreateResponse(house);
 	}
 
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public HouseJoinResponse join(Long userId, HouseJoinRequest request) {
 		User user = findUser(userId);
 		if (houseMemberRepository.existsByUserId(userId)) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_JOINED);
 		}
-		House found = houseRepository.findByInviteCode(request.inviteCode())
-				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_INVALID_INVITE_CODE));
-		// 동시 참여로 정원을 넘지 않도록 집 행을 잠근 뒤 상태와 인원을 확인한다.
-		House house = houseRepository.findByIdForUpdate(found.getId())
+		// 동시 참여로 정원을 넘지 않도록 집 행을 잠근 뒤 상태와 인원을 확인한다. 잠금을 기다린 뒤의 조회가 앞선 참여를 보도록 READ_COMMITTED 로 돈다.
+		House house = houseRepository.findByInviteCodeForUpdate(request.inviteCode())
 				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_INVALID_INVITE_CODE));
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
@@ -100,7 +99,7 @@ public class HouseService {
 	}
 
 	/** 방장이 WAITING 상태의 집에서 구성원을 내보낸다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void removeMember(Long houseId, Long ownerUserId, Long targetUserId) {
 		houseMemberValidator.getOwner(houseId, ownerUserId);
 		// 동시 참여와 겹치지 않도록 집 행을 잠근다.

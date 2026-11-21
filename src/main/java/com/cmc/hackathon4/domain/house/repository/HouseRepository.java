@@ -20,4 +20,9 @@ public interface HouseRepository extends JpaRepository<House, Long> {
 	@Query("select h from House h where h.id = :id")
 	Optional<House> findByIdForUpdate(@Param("id") Long id);
 
+	/** 초대 코드로 집 행을 잠그고 조회한다. 잠그기 전에 읽은 값으로 정원을 판단하지 않도록 참여에서 쓴다. */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select h from House h where h.inviteCode = :inviteCode")
+	Optional<House> findByInviteCodeForUpdate(@Param("inviteCode") String inviteCode);
+
 }
