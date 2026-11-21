@@ -64,7 +64,7 @@ public class TransferService {
 		Transfer transfer = transferRepository
 				.save(Transfer.relieve(assignment, original, me, Instant.now()));
 		notificationService.send(original, me, transfer, NotificationType.CHORE_RELIEVED,
-				me.getName() + "가 " + assignment.getChore().getName() + "를 덜어갔어요");
+				josa(me.getName(), "이", "가") + " " + josa(assignment.getChore().getName(), "을", "를") + " 덜어갔어요");
 		return TransferConverter.toRelieveResponse(transfer);
 	}
 
@@ -104,7 +104,7 @@ public class TransferService {
 		transfer.accept(Instant.now());
 		assignment.changeAssignee(me);
 		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_ACCEPTED,
-				me.getName() + "가 " + assignment.getChore().getName() + "를 받았어요");
+				josa(me.getName(), "이", "가") + " " + josa(assignment.getChore().getName(), "을", "를") + " 받았어요");
 		return TransferConverter.toAcceptResponse(transfer);
 	}
 
@@ -115,7 +115,7 @@ public class TransferService {
 		Transfer transfer = getReceivedPendingTransfer(userId, transferId);
 		transfer.decline(Instant.now());
 		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_DECLINED,
-				me.getName() + "가 " + transfer.getAssignment().getChore().getName() + "는 다음에 받는대요");
+				josa(me.getName(), "이", "가") + " " + josa(transfer.getAssignment().getChore().getName(), "은", "는") + " 다음에 받는대요");
 		return TransferConverter.toStatusResponse(transfer);
 	}
 
@@ -174,7 +174,7 @@ public class TransferService {
 		Instant now = Instant.now();
 		transfer.heart(now);
 		notificationService.send(transfer.getToUser(), me, transfer, NotificationType.HEART_RECEIVED,
-				me.getName() + "가 하트를 보냈어요");
+				josa(me.getName(), "이", "가") + " 하트를 보냈어요");
 		notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(userId, transferId,
 				NotificationType.CHORE_RELIEVED).forEach(notification -> notification.markRead(now));
 		return TransferConverter.toHeartResponse(transfer);
@@ -207,6 +207,13 @@ public class TransferService {
 	private Assignment getAssignment(Long assignmentId) {
 		return assignmentRepository.findWithDetailsById(assignmentId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND));
+	}
+
+	/** 마지막 글자의 받침 여부에 따라 조사를 붙인다. 한글이 아니면 받침 없는 쪽을 쓴다. */
+	private static String josa(String word, String withFinal, String withoutFinal) {
+		char last = word.charAt(word.length() - 1);
+		boolean hasFinal = last >= 0xAC00 && last <= 0xD7A3 && (last - 0xAC00) % 28 != 0;
+		return word + (hasFinal ? withFinal : withoutFinal);
 	}
 
 }
