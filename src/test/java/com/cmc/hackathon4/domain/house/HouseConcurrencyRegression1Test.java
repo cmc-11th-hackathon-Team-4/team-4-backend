@@ -155,7 +155,8 @@ class HouseConcurrencyRegression1Test {
 	@Test
 	void 마지막_한_자리에_동시에_참여해도_정원을_넘지_않는다() throws Exception {
 		for (int round = 0; round < ROUNDS; round++) {
-			Fixture f = waitingHouse(3);
+			// 정원에서 한 자리만 남긴다 (정원 값이 바뀌어도 "마지막 한 자리" 를 시험하도록)
+			Fixture f = waitingHouse(House.MAX_MEMBERS - 1);
 			User first = newUser();
 			User second = newUser();
 			HouseJoinRequest request = new HouseJoinRequest(f.house.getInviteCode());
