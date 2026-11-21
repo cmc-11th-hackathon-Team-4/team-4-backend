@@ -15,7 +15,7 @@ public interface HouseRepository extends JpaRepository<House, Long> {
 
 	boolean existsByInviteCode(String inviteCode);
 
-	/** 집 행을 잠그고 조회한다. 동시 참여로 정원(4명)을 넘는 것을 막을 때 쓴다. */
+	/** 집 행을 잠그고 조회한다. 동시 참여로 정원(5명)을 넘는 것을 막을 때 쓴다. */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select h from House h where h.id = :id")
 	Optional<House> findByIdForUpdate(@Param("id") Long id);

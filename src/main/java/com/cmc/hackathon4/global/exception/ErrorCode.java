@@ -29,7 +29,7 @@ public enum ErrorCode {
 	HOUSE_OWNER_ONLY(HttpStatus.FORBIDDEN, "HOUSE-403", "방장만 할 수 있습니다."),
 	HOUSE_NOT_MEMBER(HttpStatus.FORBIDDEN, "HOUSE-403-1", "이 집의 구성원이 아닙니다."),
 	HOUSE_ALREADY_JOINED(HttpStatus.CONFLICT, "HOUSE-409", "이미 참여 중인 집이 있습니다."),
-	HOUSE_FULL(HttpStatus.CONFLICT, "HOUSE-409-1", "정원(4명)이 가득 찼습니다."),
+	HOUSE_FULL(HttpStatus.CONFLICT, "HOUSE-409-1", "정원(5명)이 가득 찼습니다."),
 	HOUSE_DISTRIBUTING(HttpStatus.CONFLICT, "HOUSE-409-2", "배분이 진행 중이라 지금은 할 수 없습니다."),
 	HOUSE_NOT_DISTRIBUTING(HttpStatus.CONFLICT, "HOUSE-409-3", "배분 확인 단계가 아닙니다."),
 	HOUSE_ALREADY_STARTED(HttpStatus.CONFLICT, "HOUSE-409-4", "이미 시작된 집입니다."),

@@ -19,7 +19,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 집 구성원. 한 사용자는 한 집에만 속한다(user_id UNIQUE). 정원 4명은 서비스에서 검사한다. */
+/** 집 구성원. 한 사용자는 한 집에만 속한다(user_id UNIQUE). 정원(House.MAX_MEMBERS)은 서비스에서 검사한다. */
 @Getter
 @Entity
 @Table(name = "house_member", uniqueConstraints = @UniqueConstraint(name = "uk_house_member_user", columnNames = "user_id"))
