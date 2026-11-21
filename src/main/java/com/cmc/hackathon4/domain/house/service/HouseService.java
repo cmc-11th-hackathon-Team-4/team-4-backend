@@ -11,6 +11,8 @@ import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
 import com.cmc.hackathon4.domain.house.converter.HouseConverter;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
+import com.cmc.hackathon4.domain.house.dto.HouseUpdateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
@@ -81,6 +83,41 @@ public class HouseService {
 		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
 		int choreCount = choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId).size();
 		return HouseConverter.toDetailResponse(house, members, userId, choreCount, findCurrentPeriod(house));
+	}
+
+	/** 보낸 필드만 수정한다. 주기는 다음 기간부터 적용되므로 진행 중 기간은 건드리지 않는다. */
+	@Transactional
+	public HouseUpdateResponse update(Long houseId, Long userId, HouseUpdateRequest request) {
+		houseMemberValidator.getOwner(houseId, userId);
+		House house = findHouse(houseId);
+		if (request.name() != null) {
+			house.rename(request.name().trim());
+		}
+		if (request.settlementCycle() != null) {
+			house.changeSettlementCycle(request.settlementCycle());
+		}
+		return HouseConverter.toUpdateResponse(house);
+	}
+
+	/** 방장이 WAITING 상태의 집에서 구성원을 내보낸다. */
+	@Transactional
+	public void removeMember(Long houseId, Long ownerUserId, Long targetUserId) {
+		houseMemberValidator.getOwner(houseId, ownerUserId);
+		// 동시 참여와 겹치지 않도록 집 행을 잠근다.
+		House house = houseRepository.findByIdForUpdate(houseId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+		switch (house.getStatus()) {
+			case DISTRIBUTING -> throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
+			case ACTIVE -> throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);
+			case WAITING -> {
+			}
+		}
+		if (ownerUserId.equals(targetUserId)) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
+		HouseMember target = houseMemberRepository.findByHouseIdAndUserId(houseId, targetUserId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+		houseMemberRepository.delete(target);
 	}
 
 	/** WAITING 은 null, DISTRIBUTING 은 READY 기간, ACTIVE 는 READY 를 뺀 최신 기간. */

@@ -7,6 +7,8 @@ import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
+import com.cmc.hackathon4.domain.house.dto.HouseUpdateResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,5 +35,22 @@ public interface HouseApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "이 집의 구성원이 아님 (HOUSE-403-1)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 X-Device-Id (USER-404) / 집을 찾을 수 없음 (HOUSE-404)")
 	ApiResponse<HouseDetailResponse> getDetail(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
+
+	@Operation(summary = "집 이름·결산 주기 수정", description = "방장만 가능. 보낸 필드만 수정하며, 결산 주기 변경은 다음 기간부터 적용된다(진행 중 기간의 endDate 는 그대로).")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이름 길이 위반, 주기 값 오류 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 X-Device-Id (USER-404) / 집을 찾을 수 없음 (HOUSE-404)")
+	ApiResponse<HouseUpdateResponse> update(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
+			HouseUpdateRequest request);
+
+	@Operation(summary = "구성원 빼기", description = "방장만 가능하며 WAITING 상태에서만 할 수 있다. 빠진 사용자는 집이 없는 상태로 돌아간다. 방장 자신이나 이 집의 구성원이 아닌 사용자를 지정하면 COMMON-400.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "내보내기 성공 (data: null)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "방장 자신 또는 구성원이 아닌 사용자 지정 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 X-Device-Id (USER-404) / 집을 찾을 수 없음 (HOUSE-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 진행 중 (HOUSE-409-2) / 이미 시작된 집 (HOUSE-409-4)")
+	ApiResponse<Void> removeMember(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
+			@Parameter(description = "내보낼 구성원의 사용자 ID", example = "2") Long userId);
 
 }

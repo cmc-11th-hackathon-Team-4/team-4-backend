@@ -8,6 +8,7 @@ import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseMemberResponse;
 import com.cmc.hackathon4.domain.house.dto.HousePeriodResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseUpdateResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.period.entity.Period;
@@ -27,6 +28,10 @@ public final class HouseConverter {
 
 	public static HouseJoinResponse toJoinResponse(House house) {
 		return new HouseJoinResponse(house.getId(), house.getName(), house.getStatus());
+	}
+
+	public static HouseUpdateResponse toUpdateResponse(House house) {
+		return new HouseUpdateResponse(house.getId(), house.getName(), house.getSettlementCycle());
 	}
 
 	public static HouseMemberResponse toMemberResponse(HouseMember member, Long myUserId) {
