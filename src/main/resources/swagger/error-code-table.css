@@ -1,0 +1,106 @@
+.swagger-ui .info .renderedMarkdown > table {
+  --error-table-ink: #1d2d45;
+  --error-table-muted: #435672;
+  --error-table-border: #dce5ef;
+  --error-table-paper: #ffffff;
+  --error-table-alternate: #f5f8fc;
+  --error-table-heading: #edf3fa;
+  --error-table-badge: #eaf1fc;
+  --error-table-badge-ink: #234a91;
+
+  width: 100%;
+  margin: 12px 0 24px;
+  padding: 0;
+  table-layout: fixed;
+  border: 1px solid var(--error-table-border);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--error-table-paper);
+  color: var(--error-table-ink);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+html.dark-mode .swagger-ui .info .renderedMarkdown > table {
+  --error-table-ink: #e4edf9;
+  --error-table-muted: #c9d8ed;
+  --error-table-border: #344761;
+  --error-table-paper: #142033;
+  --error-table-alternate: #19283d;
+  --error-table-heading: #23344e;
+  --error-table-badge: #273c60;
+  --error-table-badge-ink: #d1e0ff;
+}
+
+.swagger-ui .info .renderedMarkdown > table tr > :is(th, td) {
+  padding: 12px 16px;
+  border: 0;
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.swagger-ui .info .renderedMarkdown > table thead th {
+  background: var(--error-table-heading);
+  color: var(--error-table-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.swagger-ui .info .renderedMarkdown > table thead th:first-child {
+  width: 10%;
+}
+
+.swagger-ui .info .renderedMarkdown > table thead th:nth-child(2) {
+  width: 25%;
+}
+
+.swagger-ui .info .renderedMarkdown > table tbody td {
+  border-top: 1px solid var(--error-table-border);
+  color: var(--error-table-ink);
+}
+
+.swagger-ui .info .renderedMarkdown > table tbody tr:nth-child(even) {
+  background: var(--error-table-alternate);
+}
+
+.swagger-ui .info .renderedMarkdown > table tbody td:first-child {
+  color: var(--error-table-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.swagger-ui .info .renderedMarkdown > table tbody td code {
+  display: inline-block;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid var(--error-table-border);
+  border-radius: 6px;
+  background: var(--error-table-badge);
+  color: var(--error-table-badge-ink);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .swagger-ui .info .renderedMarkdown > table tr > :is(th, td) {
+    padding: 8px;
+  }
+
+  .swagger-ui .info .renderedMarkdown > table thead th:first-child {
+    width: 14%;
+  }
+
+  .swagger-ui .info .renderedMarkdown > table thead th:nth-child(2) {
+    width: 36%;
+  }
+
+  .swagger-ui .info .renderedMarkdown > table tbody td code {
+    padding-inline: 4px;
+  }
+}

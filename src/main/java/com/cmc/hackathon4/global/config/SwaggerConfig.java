@@ -1,5 +1,7 @@
 package com.cmc.hackathon4.global.config;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -11,8 +13,19 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.BooleanSchema;
 import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.StringSchema;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springdoc.core.properties.SwaggerUiConfigProperties;
+import org.springdoc.core.properties.SwaggerUiOAuthProperties;
+import org.springdoc.core.providers.ObjectMapperProvider;
+import org.springdoc.webmvc.ui.SwaggerIndexPageTransformer;
+import org.springdoc.webmvc.ui.SwaggerIndexTransformer;
+import org.springdoc.webmvc.ui.SwaggerWelcomeCommon;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.web.servlet.resource.ResourceTransformerChain;
+import org.springframework.web.servlet.resource.TransformedResource;
 
 // Swagger UI 주소: /swagger-ui.html
 @Configuration
@@ -34,6 +47,7 @@ public class SwaggerConfig {
 			모든 시간 값은 UTC ISO-8601 형식이다. 예: `2026-11-21T05:30:00Z`
 
 			## 에러 코드 전체 목록
+
 			""";
 
 	@Bean
@@ -46,13 +60,32 @@ public class SwaggerConfig {
 				.components(new Components().addSchemas(ErrorResponseDocs.ERROR_SCHEMA_NAME, errorResponseSchema()));
 	}
 
+	@Bean
+	public SwaggerIndexTransformer swaggerIndexTransformer(SwaggerUiConfigProperties ui, SwaggerUiOAuthProperties oauth,
+			SwaggerWelcomeCommon welcome, ObjectMapperProvider mapper) throws IOException {
+		String tableStyles = new ClassPathResource("swagger/error-code-table.css")
+				.getContentAsString(StandardCharsets.UTF_8);
+		return new SwaggerIndexPageTransformer(ui, oauth, welcome, mapper) {
+			@Override
+			public Resource transform(HttpServletRequest request, Resource resource, ResourceTransformerChain chain)
+					throws IOException {
+				Resource transformed = super.transform(request, resource, chain);
+				if (!"index.css".equals(resource.getFilename())) {
+					return transformed;
+				}
+				String css = transformed.getContentAsString(StandardCharsets.UTF_8) + "\n" + tableStyles;
+				return new TransformedResource(resource, css.getBytes(StandardCharsets.UTF_8));
+			}
+		};
+	}
+
 	// ErrorCode enum 에서 바로 만들므로 코드를 추가·수정하면 자동으로 반영된다
 	private static String errorCodeTable() {
 		String rows = Arrays.stream(ErrorCode.values())
-				.map(errorCode -> "| `%s` | %d | %s |".formatted(errorCode.getCode(), errorCode.getStatus().value(),
+				.map(errorCode -> "| %d | `%s` | %s |".formatted(errorCode.getStatus().value(), errorCode.getCode(),
 						errorCode.getMessage()))
 				.collect(Collectors.joining("\n"));
-		return "| 코드 | HTTP | 메시지 |\n| --- | --- | --- |\n" + rows;
+		return "| HTTP | code | message |\n| --- | --- | --- |\n" + rows;
 	}
 
 	private static ObjectSchema errorResponseSchema() {
