@@ -11,7 +11,6 @@ import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
@@ -104,7 +103,7 @@ class DistributionServiceTest {
 
 	@Test
 	void 시작일이_과거이면_배분을_만들_수_없다() {
-		DistributionCreateRequest past = new DistributionCreateRequest(SettlementCycle.WEEKLY,
+		DistributionCreateRequest past = new DistributionCreateRequest(7,
 				LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1));
 
 		assertThatThrownBy(() -> distributionService.create(houseId, ownerId, past))
@@ -127,12 +126,12 @@ class DistributionServiceTest {
 		LocalDate newStart = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(5);
 
 		DistributionResponse response = distributionService.create(houseId, ownerId,
-				new DistributionCreateRequest(SettlementCycle.BIWEEKLY, newStart));
+				new DistributionCreateRequest(3, newStart));
 
 		assertThat(response.period().id()).isEqualTo(periodId);
-		assertThat(response.settlementCycle()).isEqualTo(SettlementCycle.BIWEEKLY);
+		assertThat(response.settlementCycle()).isEqualTo(3);
 		assertThat(response.period().startDate()).isEqualTo(newStart);
-		assertThat(response.period().endDate()).isEqualTo(newStart.plusDays(13));
+		assertThat(response.period().endDate()).isEqualTo(newStart.plusDays(2));
 		assertThat(assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId)).hasSize(7);
 	}
 
@@ -198,7 +197,7 @@ class DistributionServiceTest {
 
 		Period started = periodRepository.findById(periodId).orElseThrow();
 		assertThat(started.getStartDate()).isEqualTo(today);
-		assertThat(started.getEndDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+		assertThat(started.getEndDate()).isEqualTo(today.plusDays(6));
 	}
 
 	@Test
@@ -206,14 +205,30 @@ class DistributionServiceTest {
 		var created = distributionService.create(houseId, ownerId, request());
 
 		houseService.update(houseId, ownerId,
-				new com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest(null, SettlementCycle.MONTHLY));
+				new com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest(null, 1));
 
 		Period ready = periodRepository.findById(created.period().id()).orElseThrow();
-		assertThat(ready.getEndDate()).isEqualTo(SettlementCycle.MONTHLY.endDateFrom(created.period().startDate()));
+		assertThat(ready.getEndDate()).isEqualTo(created.period().startDate());
+	}
+
+	@Test
+	void 결산_주기는_1_3_7일만_고를_수_있고_에러는_settlementCycle_필드로_나간다() {
+		DistributionCreateRequest invalid = new DistributionCreateRequest(14, LocalDate.now(ZoneId.of("Asia/Seoul")));
+
+		assertThatThrownBy(() -> distributionService.create(houseId, ownerId, invalid))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(e -> {
+					assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).startsWith("settlementCycle:");
+				});
+		assertThatThrownBy(() -> houseService.update(houseId, ownerId,
+				new com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest(null, 2)))
+				.extracting(e -> ((BusinessException) e).getErrorCode())
+				.isEqualTo(ErrorCode.INVALID_INPUT);
 	}
 
 	private DistributionCreateRequest request() {
-		return new DistributionCreateRequest(SettlementCycle.WEEKLY, LocalDate.now(ZoneId.of("Asia/Seoul")));
+		return new DistributionCreateRequest(7, LocalDate.now(ZoneId.of("Asia/Seoul")));
 	}
 
 }

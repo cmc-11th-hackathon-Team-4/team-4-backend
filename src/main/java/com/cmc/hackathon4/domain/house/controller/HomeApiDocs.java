@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-@Tag(name = "홈·짐", description = "내 메인과 구성원 상세 조회")
+@Tag(name = "Home", description = "내 메인과 구성원 상세 조회")
 public interface HomeApiDocs {
 
 	@Operation(summary = "내 메인 조회", description = "내 메인(V5-01). period 는 READY 를 제외한 가장 최근 기간이며 시작 전이면 null. "

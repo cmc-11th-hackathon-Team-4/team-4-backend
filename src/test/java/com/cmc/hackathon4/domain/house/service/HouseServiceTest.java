@@ -9,7 +9,6 @@ import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.period.entity.Period;
@@ -117,7 +116,7 @@ class HouseServiceTest {
 		User other = newUser("dev-other");
 		HouseCreateResponse distributing = houseService.create(other.getId(), new HouseCreateRequest("배분중"));
 		houseRepository.findById(distributing.id()).orElseThrow()
-				.startDistributing(com.cmc.hackathon4.domain.house.entity.SettlementCycle.WEEKLY);
+				.startDistributing(7);
 		houseRepository.flush();
 		assertError(() -> houseService.getInvitePreview(distributing.inviteCode()), ErrorCode.HOUSE_DISTRIBUTING);
 	}
@@ -127,7 +126,7 @@ class HouseServiceTest {
 		User owner = newUser("dev-owner");
 		HouseCreateResponse created = houseService.create(owner.getId(), new HouseCreateRequest("우리집"));
 		House house = houseRepository.findById(created.id()).orElseThrow();
-		house.startDistributing(com.cmc.hackathon4.domain.house.entity.SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		houseRepository.flush();
 		User newcomer = newUser("dev-new");
 
@@ -162,7 +161,7 @@ class HouseServiceTest {
 		houseService.join(member.getId(), new HouseJoinRequest(created.inviteCode()));
 		House house = houseRepository.findById(created.id()).orElseThrow();
 
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		assertError(() -> houseService.removeMember(house.getId(), owner.getId(), member.getId()),
 				ErrorCode.HOUSE_DISTRIBUTING);
 		house.activate();
@@ -181,7 +180,7 @@ class HouseServiceTest {
 
 		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod()).isNull();
 
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		Period first = periodRepository.save(new Period(house, 1, start, start.plusDays(6)));
 		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod().id()).isEqualTo(first.getId());
 
@@ -198,17 +197,17 @@ class HouseServiceTest {
 		Long houseId = houseService.create(owner.getId(), new HouseCreateRequest("우리집")).id();
 		House house = houseRepository.findById(houseId).orElseThrow();
 		LocalDate start = LocalDate.of(2026, 11, 23);
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		house.activate();
 		Period current = periodRepository.save(new Period(house, 1, start, start.plusDays(6)));
 		current.start();
 
 		assertThat(houseService.update(houseId, owner.getId(), new HouseUpdateRequest(" 새이름 ", null))
-				.settlementCycle()).isEqualTo(SettlementCycle.WEEKLY);
-		assertThat(houseService.update(houseId, owner.getId(), new HouseUpdateRequest(null, SettlementCycle.BIWEEKLY))
+				.settlementCycle()).isEqualTo(7);
+		assertThat(houseService.update(houseId, owner.getId(), new HouseUpdateRequest(null, 3))
 				.name()).isEqualTo("새이름");
 
-		assertThat(houseService.getDetail(houseId, owner.getId()).settlementCycle()).isEqualTo(SettlementCycle.BIWEEKLY);
+		assertThat(houseService.getDetail(houseId, owner.getId()).settlementCycle()).isEqualTo(3);
 		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod().endDate()).isEqualTo(start.plusDays(6));
 	}
 

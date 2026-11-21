@@ -13,7 +13,6 @@ import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.entity.Notification;
@@ -89,7 +88,7 @@ class TransferFlowTest {
 		houseMemberRepository.save(new HouseMember(house, minji, MemberRole.MEMBER));
 		chore = choreRepository.save(new Chore(house, "분리수거"));
 		LocalDate start = LocalDate.of(2026, 11, 23);
-		period = new Period(house, 1, start, SettlementCycle.WEEKLY.endDateFrom(start));
+		period = new Period(house, 1, start, start.plusDays(6));
 		period.start();
 		periodRepository.save(period);
 		assignment = assignmentRepository.save(new Assignment(period, chore, suah, false));
@@ -170,7 +169,7 @@ class TransferFlowTest {
 	void 시작_전_기간의_짐은_완료_덜어가기_부탁을_할_수_없다() {
 		LocalDate nextStart = period.getEndDate().plusDays(1);
 		Period next = periodRepository
-				.save(new Period(house, 2, nextStart, SettlementCycle.WEEKLY.endDateFrom(nextStart)));
+				.save(new Period(house, 2, nextStart, nextStart.plusDays(6)));
 		Assignment ready = assignmentRepository.save(new Assignment(next, chore, suah, false));
 
 		expectError(() -> assignmentService.complete(suah.getId(), ready.getId()), ErrorCode.PERIOD_NOT_STARTED);

@@ -60,6 +60,9 @@ public class DistributionService {
 		if (house.getStatus() == HouseStatus.ACTIVE) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);
 		}
+		if (!House.isValidSettlementCycle(request.settlementCycle())) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "settlementCycle: 결산 주기는 1, 3, 7일 중 하나여야 합니다.");
+		}
 		if (request.startDate().isBefore(LocalDate.now(KST)) || choreRepository
 				.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId).isEmpty()) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT);
@@ -74,8 +77,8 @@ public class DistributionService {
 		}
 
 		house = getHouse(houseId);
-		LocalDate endDate = request.settlementCycle().endDateFrom(request.startDate());
 		house.startDistributing(request.settlementCycle());
+		LocalDate endDate = house.periodEndDateFrom(request.startDate());
 		Period period;
 		if (readyPeriodId == null) {
 			period = periodRepository.save(new Period(house, 1, request.startDate(), endDate));
@@ -119,7 +122,7 @@ public class DistributionService {
 		Period period = getReadyPeriod(houseId);
 		LocalDate today = LocalDate.now(KST);
 		if (period.getStartDate().isBefore(today)) {
-			period.reschedule(today, house.getSettlementCycle().endDateFrom(today));
+			period.reschedule(today, house.periodEndDateFrom(today));
 		}
 		period.start();
 		house.activate();

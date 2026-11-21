@@ -17,7 +17,6 @@ import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.period.entity.Period;
@@ -100,7 +99,7 @@ class ChoreServiceTest {
 
 	@Test
 	void 일괄_저장은_DISTRIBUTING_이면_HOUSE_409_2() {
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 
 		assertThatThrownBy(() -> choreService.replaceChores(house.getId(), owner.getId(),
 				new ChoreBulkSaveRequest(List.of("설거지")))).isInstanceOf(BusinessException.class)
@@ -109,7 +108,7 @@ class ChoreServiceTest {
 
 	@Test
 	void 일괄_저장은_ACTIVE_이면_HOUSE_409_4() {
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		house.activate();
 
 		assertThatThrownBy(() -> choreService.replaceChores(house.getId(), owner.getId(),
@@ -119,10 +118,10 @@ class ChoreServiceTest {
 
 	@Test
 	void ACTIVE_집에서_추가하면_추가한_사람의_짐이_만들어진다() {
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		house.activate();
 		LocalDate start = LocalDate.of(2026, 11, 23);
-		Period period = new Period(house, 1, start, SettlementCycle.WEEKLY.endDateFrom(start));
+		Period period = new Period(house, 1, start, start.plusDays(6));
 		period.start();
 		periodRepository.save(period);
 
@@ -149,7 +148,7 @@ class ChoreServiceTest {
 
 	@Test
 	void 배분_확인_중에는_집안일을_추가할_수_없다() {
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 
 		assertThatThrownBy(() -> choreService.createChore(house.getId(), member.getId(),
 				new ChoreCreateRequest("설거지"))).isInstanceOfSatisfying(BusinessException.class,
@@ -181,10 +180,10 @@ class ChoreServiceTest {
 	// ---- 집안일 삭제 / 한도 ----
 
 	private Period startHouse() {
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		house.activate();
 		LocalDate start = LocalDate.of(2026, 11, 23);
-		Period period = new Period(house, 1, start, SettlementCycle.WEEKLY.endDateFrom(start));
+		Period period = new Period(house, 1, start, start.plusDays(6));
 		period.start();
 		return periodRepository.save(period);
 	}
@@ -259,7 +258,7 @@ class ChoreServiceTest {
 	@Test
 	void 배분_확인_중에는_집안일을_삭제할_수_없다() {
 		Chore chore = choreRepository.save(new Chore(house, "설거지"));
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 
 		expectError(() -> choreService.deleteChore(house.getId(), owner.getId(), chore.getId()),
 				ErrorCode.HOUSE_DISTRIBUTING);
@@ -271,7 +270,7 @@ class ChoreServiceTest {
 		first.end(Instant.now());
 		LocalDate nextStart = first.getEndDate().plusDays(1);
 		Period next = periodRepository
-				.save(new Period(house, 2, nextStart, SettlementCycle.WEEKLY.endDateFrom(nextStart)));
+				.save(new Period(house, 2, nextStart, nextStart.plusDays(6)));
 		Assignment ready = addAssignment(next, member, "설거지");
 		Assignment kept = addAssignment(next, owner, "분리수거");
 
@@ -324,7 +323,7 @@ class ChoreServiceTest {
 
 	@Test
 	void ACTIVE_인데_기간이_하나도_없으면_PERIOD_404() {
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		house.activate();
 
 		expectError(() -> choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("추가")),

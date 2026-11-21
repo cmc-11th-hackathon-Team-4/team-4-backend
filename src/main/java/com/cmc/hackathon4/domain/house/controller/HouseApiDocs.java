@@ -47,7 +47,7 @@ public interface HouseApiDocs {
 	@Operation(summary = "집 이름·결산 주기 수정", description = "방장만 가능. 보낸 필드만 수정하며, 결산 주기 변경은 다음 기간부터 적용된다(진행 중 기간의 endDate 는 그대로).")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND })
-	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반, 주기 값 오류")
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반, 결산 주기가 1, 3, 7 이 아님")
 	ApiResponse<HouseUpdateResponse> update(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			HouseUpdateRequest request);
 
