@@ -24,6 +24,7 @@ import com.cmc.hackathon4.domain.user.entity.CharacterType;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
+import com.cmc.hackathon4.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -188,6 +189,27 @@ class HouseQueryServiceTest {
 
 		assertThatThrownBy(() -> houseQueryService.getHome(house.getId(), stranger.getId()))
 				.isInstanceOf(BusinessException.class);
+	}
+
+	@Test
+	void 없는_집_홈을_조회하면_HOUSE_404다() {
+		assertThatThrownBy(() -> houseQueryService.getHome(Long.MAX_VALUE, me.getId()))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.HOUSE_NOT_FOUND));
+	}
+
+	@Test
+	void 상대가_짐을_모두_완료했으면_상세_응답의_짐_목록은_비어_있다() {
+		house.activate();
+		Period active = period(1, PeriodStatus.ACTIVE);
+		assignment(active, other, "설거지").complete(java.time.Instant.now());
+		assignment(active, me, "내 짐");
+
+		MemberDetailResponse response = houseQueryService.getMemberDetail(house.getId(), me.getId(), other.getId());
+
+		assertThat(response.name()).isEqualTo(other.getName());
+		assertThat(response.assignmentCount()).isZero();
+		assertThat(response.assignments()).isEmpty();
 	}
 
 	@Test

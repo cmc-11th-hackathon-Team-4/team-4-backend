@@ -218,6 +218,9 @@ class PeriodServiceTest {
 		periodService.saveCarryOvers(period1Id, ownerId, new CarryOverRequest(List.of(
 				new CarryOverRequest.Choice(releasedId, CarryChoice.RELEASE),
 				new CarryOverRequest.Choice(keptId, CarryChoice.KEEP))));
+		assertThat(periodService.getSettlement(period1Id, ownerId).myUndone())
+				.filteredOn(choice -> choice.assignmentId().equals(releasedId)).singleElement()
+				.extracting(SettlementResponse.MyUndone::carryChoice).isEqualTo(CarryChoice.RELEASE);
 
 		NextPeriodResponse next = periodService.createNext(houseId, ownerId);
 
@@ -257,6 +260,8 @@ class PeriodServiceTest {
 		Long periodId = startFirstPeriod();
 		List<Assignment> all = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId);
 		Assignment notMine = all.stream().filter(a -> !a.getAssignee().getId().equals(ownerId)).findFirst().orElseThrow();
+		Assignment mine = all.stream().filter(a -> a.getAssignee().getId().equals(ownerId)).findFirst().orElseThrow();
+		mine.complete(Instant.now());
 		periodService.end(houseId, ownerId);
 
 		CarryOverRequest request = new CarryOverRequest(
@@ -264,6 +269,25 @@ class PeriodServiceTest {
 		assertThatThrownBy(() -> periodService.saveCarryOvers(periodId, ownerId, request))
 				.extracting(e -> ((BusinessException) e).getErrorCode())
 				.isEqualTo(ErrorCode.ASSIGNMENT_NOT_MINE);
+		CarryOverRequest completed = new CarryOverRequest(
+				List.of(new CarryOverRequest.Choice(mine.getId(), CarryChoice.RELEASE)));
+		assertThatThrownBy(() -> periodService.saveCarryOvers(periodId, ownerId, completed))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ASSIGNMENT_NOT_MINE));
+	}
+
+	@Test
+	void 기간이_끝나기_전에는_이월_선택을_저장할_수_없다() {
+		Long periodId = startFirstPeriod();
+		Assignment mine = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId).stream()
+				.filter(a -> a.getAssignee().getId().equals(ownerId)).findFirst().orElseThrow();
+		CarryOverRequest request = new CarryOverRequest(
+				List.of(new CarryOverRequest.Choice(mine.getId(), CarryChoice.RELEASE)));
+
+		assertThatThrownBy(() -> periodService.saveCarryOvers(periodId, ownerId, request))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.PERIOD_NOT_ENDED));
+		assertThat(mine.getCarryChoice()).isNull();
 	}
 
 	@Test

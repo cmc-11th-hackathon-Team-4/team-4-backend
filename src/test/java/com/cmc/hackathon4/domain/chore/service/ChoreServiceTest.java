@@ -148,6 +148,16 @@ class ChoreServiceTest {
 	}
 
 	@Test
+	void 배분_확인_중에는_집안일을_추가할_수_없다() {
+		house.startDistributing(SettlementCycle.WEEKLY);
+
+		assertThatThrownBy(() -> choreService.createChore(house.getId(), member.getId(),
+				new ChoreCreateRequest("설거지"))).isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.HOUSE_DISTRIBUTING));
+		assertThat(choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(house.getId())).isEmpty();
+	}
+
+	@Test
 	void 같은_이름의_집안일이_있으면_CHORE_409() {
 		choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("설거지"));
 

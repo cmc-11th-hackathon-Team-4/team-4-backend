@@ -5,11 +5,11 @@ import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
-import com.cmc.hackathon4.domain.notification.entity.Notification;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserMoodUpdateRequest;
+import com.cmc.hackathon4.domain.user.dto.UserUpdateRequest;
 import com.cmc.hackathon4.domain.user.entity.CharacterType;
 import com.cmc.hackathon4.domain.user.entity.Mood;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -17,6 +17,8 @@ import com.cmc.hackathon4.domain.user.repository.UserRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,8 +65,37 @@ class UserServiceTest {
 	}
 
 	@Test
-	void 기분이_NO_CHOICE_로_바뀌면_같은_집_나머지_구성원에게만_알림이_생긴다() {
-		User me = userRepository.save(new User("device-me", "수아", CharacterType.CHARACTER_1));
+	void 프로필은_이름과_캐릭터_중_보낸_필드만_바꾼다() {
+		User user = userRepository.save(new User("device-update", "수아", CharacterType.CHARACTER_1));
+
+		assertThat(userService.update(user.getId(), new UserUpdateRequest("민지", null)).characterType())
+				.isEqualTo(CharacterType.CHARACTER_1);
+		assertThat(userService.update(user.getId(), new UserUpdateRequest(null, CharacterType.CHARACTER_2)).name())
+				.isEqualTo("민지");
+
+		User saved = userRepository.findByDeviceId("device-update").orElseThrow();
+		assertThat(saved.getName()).isEqualTo("민지");
+		assertThat(saved.getCharacterType()).isEqualTo(CharacterType.CHARACTER_2);
+	}
+
+	@Test
+	void 내_프로필은_집에_가입한_후에만_소속_집과_역할을_담는다() {
+		User user = userRepository.save(new User("device-get-me", "수아", CharacterType.CHARACTER_1));
+		assertThat(userService.getMe(user.getId()).house()).isNull();
+
+		House house = houseRepository.save(new House("302호", "K7Q2M9"));
+		houseMemberRepository.save(new HouseMember(house, user, MemberRole.OWNER));
+
+		assertThat(userService.getMe(user.getId()).house()).satisfies(membership -> {
+			assertThat(membership.id()).isEqualTo(house.getId());
+			assertThat(membership.role()).isEqualTo(MemberRole.OWNER);
+		});
+	}
+
+	@ParameterizedTest
+	@CsvSource({"수아, 수아가", "수빈, 수빈이", "Alex, Alex가", "별🌟, 별🌟가"})
+	void 기분이_NO_CHOICE_로_바뀌면_같은_집_나머지_구성원에게만_알림이_생긴다(String name, String subject) {
+		User me = userRepository.save(new User("device-me", name, CharacterType.CHARACTER_1));
 		User mate = userRepository.save(new User("device-mate", "민지", CharacterType.CHARACTER_2));
 		House house = houseRepository.save(new House("302호", "K7Q2M9"));
 		houseMemberRepository.save(new HouseMember(house, me, MemberRole.OWNER));
@@ -74,8 +105,10 @@ class UserServiceTest {
 
 		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(mate.getId()))
 				.singleElement()
-				.extracting(Notification::getType)
-				.isEqualTo(NotificationType.MOOD_NO_CHOICE);
+				.satisfies(notification -> {
+					assertThat(notification.getType()).isEqualTo(NotificationType.MOOD_NO_CHOICE);
+					assertThat(notification.getMessage()).isEqualTo(subject + " 아무것도 고르기 싫대요");
+				});
 		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(me.getId())).isEmpty();
 	}
 
