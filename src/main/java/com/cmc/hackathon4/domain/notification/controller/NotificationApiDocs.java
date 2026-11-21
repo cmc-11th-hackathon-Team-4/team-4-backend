@@ -6,6 +6,7 @@ import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Tag(name = "Notification", description = "알림 API")
 public interface NotificationApiDocs {
@@ -23,5 +24,16 @@ public interface NotificationApiDocs {
 	ApiResponse<NotificationListResponse> findMine(User user,
 			@Parameter(description = "안 읽은 알림만 조회할지 (기본 true)", example = "true") boolean unreadOnly,
 			@Parameter(description = "이 id 보다 큰 알림만 조회", example = "18") Long afterId);
+
+	@Operation(summary = "알림 실시간 스트림(SSE)", description = "text/event-stream. 응답 래퍼 없음. EventSource 가 헤더를 못 보내 X-Device-Id 대신 쿼리 deviceId 로 사용자를 식별한다. "
+			+ "연결 직후 `event: connected`, 새 알림마다 `id`/`event: notification`/`data`(알림 JSON), 30초마다 `: ping` 주석. "
+			+ "사용자당 연결 1개(새 연결이 오면 이전 연결 종료), 서버 타임아웃 30분. "
+			+ "Last-Event-ID 헤더가 있으면 그 id 보다 큰 알림을 먼저 다시 보낸다. 에러는 연결 전에만 일반 JSON 으로 내려온다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "연결 성공 (text/event-stream)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "deviceId 쿼리 없음 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 deviceId (USER-404)")
+	SseEmitter stream(
+			@Parameter(description = "앱이 발급해 보관하는 기기 UUID (X-Device-Id 와 같은 값)", example = "3f2b8c1e-7a4d-4e9b-9c1a-5d6e7f8a9b0c") String deviceId,
+			@Parameter(hidden = true) String lastEventId);
 
 }
