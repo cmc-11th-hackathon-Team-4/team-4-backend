@@ -1,7 +1,13 @@
 package com.cmc.hackathon4.domain.house.service;
 
 import java.security.SecureRandom;
+import java.util.List;
 
+import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
+import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
+import com.cmc.hackathon4.domain.period.entity.Period;
+import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
+import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
 import com.cmc.hackathon4.domain.house.converter.HouseConverter;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
@@ -33,6 +39,9 @@ public class HouseService {
 	private final HouseRepository houseRepository;
 	private final HouseMemberRepository houseMemberRepository;
 	private final UserRepository userRepository;
+	private final ChoreRepository choreRepository;
+	private final PeriodRepository periodRepository;
+	private final HouseMemberValidator houseMemberValidator;
 
 	@Transactional
 	public HouseCreateResponse create(Long userId, HouseCreateRequest request) {
@@ -64,6 +73,30 @@ public class HouseService {
 		}
 		houseMemberRepository.save(new HouseMember(house, user, MemberRole.MEMBER));
 		return HouseConverter.toJoinResponse(house);
+	}
+
+	public HouseDetailResponse getDetail(Long houseId, Long userId) {
+		houseMemberValidator.getMember(houseId, userId);
+		House house = findHouse(houseId);
+		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
+		int choreCount = choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId).size();
+		return HouseConverter.toDetailResponse(house, members, userId, choreCount, findCurrentPeriod(house));
+	}
+
+	/** WAITING 은 null, DISTRIBUTING 은 READY 기간, ACTIVE 는 READY 를 뺀 최신 기간. */
+	private Period findCurrentPeriod(House house) {
+		return switch (house.getStatus()) {
+			case WAITING -> null;
+			case DISTRIBUTING -> periodRepository.findByHouseIdAndStatus(house.getId(), PeriodStatus.READY)
+					.orElse(null);
+			case ACTIVE -> periodRepository
+					.findFirstByHouseIdAndStatusNotOrderByRoundDesc(house.getId(), PeriodStatus.READY)
+					.orElse(null);
+		};
+	}
+
+	private House findHouse(Long houseId) {
+		return houseRepository.findById(houseId).orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
 	}
 
 	private User findUser(Long userId) {
