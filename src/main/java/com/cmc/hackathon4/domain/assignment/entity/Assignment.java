@@ -67,6 +67,10 @@ public class Assignment extends BaseTimeEntity {
 	@Column(name = "carry_choice", length = 20)
 	private CarryChoice carryChoice;
 
+	// 집안일이 삭제되어 담당자의 짐에서 빠진 시각. null 이 아니면 삭제된 짐이다.
+	@Column(name = "deleted_at")
+	private Instant deletedAt;
+
 	public Assignment(Period period, Chore chore, User assignee, boolean carriedOver) {
 		this.period = period;
 		this.chore = chore;
@@ -79,6 +83,14 @@ public class Assignment extends BaseTimeEntity {
 	public void complete(Instant completedAt) {
 		this.status = AssignmentStatus.DONE;
 		this.completedAt = completedAt;
+	}
+
+	public void delete(Instant now) {
+		this.deletedAt = now;
+	}
+
+	public boolean isDeleted() {
+		return deletedAt != null;
 	}
 
 	public void changeAssignee(User assignee) {

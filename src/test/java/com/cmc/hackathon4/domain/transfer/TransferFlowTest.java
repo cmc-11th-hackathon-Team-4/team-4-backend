@@ -1,5 +1,6 @@
 package com.cmc.hackathon4.domain.transfer;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 import com.cmc.hackathon4.domain.assignment.dto.AssignmentCompleteResponse;
@@ -269,6 +270,67 @@ class TransferFlowTest {
 				.request(suah.getId(), assignment.getId(), new TransferRequestCreateRequest(minji.getId()))
 				.transferId();
 		expectError(() -> transferService.heart(suah.getId(), requestId), ErrorCode.TRANSFER_ALREADY_HANDLED);
+	}
+
+	// ---- 개인 한도(5개) ----
+
+	private void giveTodoAssignments(User user, int count) {
+		for (int i = 1; i <= count; i++) {
+			Chore extra = choreRepository.save(new Chore(house, "추가" + user.getId() + "-" + i));
+			assignmentRepository.save(new Assignment(period, extra, user, false));
+		}
+	}
+
+	@Test
+	void 내_짐이_5개면_덜어갈_수_없다() {
+		giveTodoAssignments(minji, 5);
+
+		expectError(() -> transferService.relieve(minji.getId(), assignment.getId()),
+				ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
+		assertThat(assignment.getAssignee()).isEqualTo(suah);
+
+		// 완료하면 한도에서 빠진다
+		assignmentRepository
+				.findAllByPeriodIdAndAssigneeIdAndStatusOrderByIdAsc(period.getId(), minji.getId(),
+						AssignmentStatus.TODO)
+				.get(0)
+				.complete(Instant.now());
+		transferService.relieve(minji.getId(), assignment.getId());
+		assertThat(assignment.getAssignee()).isEqualTo(minji);
+	}
+
+	@Test
+	void 내_짐이_5개면_부탁을_받을_수_없다() {
+		Long requestId = transferService
+				.request(suah.getId(), assignment.getId(), new TransferRequestCreateRequest(minji.getId()))
+				.transferId();
+		giveTodoAssignments(minji, 5);
+
+		expectError(() -> transferService.accept(minji.getId(), requestId), ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
+		assertThat(transferRepository.findById(requestId).orElseThrow().getStatus())
+				.isEqualTo(TransferStatus.PENDING);
+		assertThat(assignment.getAssignee()).isEqualTo(suah);
+	}
+
+	@Test
+	void 덜어가기를_되돌릴_때_원래_담당자의_짐이_5개면_되돌릴_수_없다() {
+		Long relieveId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		giveTodoAssignments(suah, 5);
+
+		expectError(() -> transferService.cancel(minji.getId(), relieveId), ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
+		assertThat(assignment.getAssignee()).isEqualTo(minji);
+		assertThat(transferRepository.findById(relieveId).orElseThrow().getStatus())
+				.isEqualTo(TransferStatus.ACCEPTED);
+	}
+
+	@Test
+	void 집안일이_삭제된_짐은_되돌릴_수_없고_완료도_ASSIGNMENT_404_이다() {
+		Long relieveId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		assignment.delete(Instant.now());
+
+		expectError(() -> transferService.cancel(minji.getId(), relieveId), ErrorCode.TRANSFER_ALREADY_HANDLED);
+		expectError(() -> assignmentService.complete(minji.getId(), assignment.getId()),
+				ErrorCode.ASSIGNMENT_NOT_FOUND);
 	}
 
 }

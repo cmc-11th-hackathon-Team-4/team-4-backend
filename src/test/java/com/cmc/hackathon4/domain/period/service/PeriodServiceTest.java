@@ -10,8 +10,10 @@ import java.util.stream.Collectors;
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.entity.CarryChoice;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
+import com.cmc.hackathon4.domain.chore.dto.ChoreCreateRequest;
 import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
+import com.cmc.hackathon4.domain.chore.service.ChoreService;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
@@ -53,6 +55,8 @@ class PeriodServiceTest {
 
 	@Autowired
 	PeriodService periodService;
+	@Autowired
+	ChoreService choreService;
 	@Autowired
 	DistributionService distributionService;
 	@Autowired
@@ -342,6 +346,27 @@ class PeriodServiceTest {
 		assertThatThrownBy(() -> periodService.startNext(houseId, ownerId))
 				.extracting(e -> ((BusinessException) e).getErrorCode())
 				.isEqualTo(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
+	}
+
+	@Test
+	void 시작한_뒤_추가한_집안일은_기간이_끝나면_비활성화되고_다음_배분에서_빠진다() {
+		Long periodId = startFirstPeriod();
+		Long addedChoreId = choreService.createChore(houseId, member1Id, new ChoreCreateRequest("임시 집안일")).chore().id();
+
+		periodService.end(houseId, ownerId);
+
+		assertThat(choreRepository.findById(addedChoreId).orElseThrow().isActive()).isFalse();
+		// 결산에는 그대로 보이지만 내 못 한 일(이월 선택 대상)에서는 빠진다
+		SettlementResponse settlement = periodService.getSettlement(periodId, member1Id);
+		assertThat(settlement.chores()).extracting(SettlementResponse.Chore::name).contains("임시 집안일");
+		assertThat(settlement.summary().totalCount()).isEqualTo(8);
+		assertThat(settlement.myUndone()).extracting(SettlementResponse.MyUndone::name).doesNotContain("임시 집안일");
+
+		NextPeriodResponse next = periodService.createNext(houseId, ownerId);
+		assertThat(next.totalCount()).isEqualTo(7);
+		assertThat(next.members().stream().flatMap(member -> member.chores().stream()))
+				.extracting(NextPeriodResponse.Chore::choreId)
+				.doesNotContain(addedChoreId);
 	}
 
 	private Long startFirstPeriod() {

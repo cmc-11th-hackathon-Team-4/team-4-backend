@@ -25,6 +25,11 @@ public final class ChoreConverter {
 		return new Chore(house, name);
 	}
 
+	/** 시작한 뒤 추가된, 그 기간에만 유효한 집안일 */
+	public static Chore toTemporaryEntity(House house, String name) {
+		return new Chore(house, name, true);
+	}
+
 	public static ChoreResponse toResponse(Chore chore) {
 		return new ChoreResponse(chore.getId(), chore.getName());
 	}

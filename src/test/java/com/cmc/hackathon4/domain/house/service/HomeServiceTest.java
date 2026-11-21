@@ -212,6 +212,26 @@ class HomeServiceTest {
 	}
 
 	@Test
+	void 상대_상세의_부탁_중인_짐은_받는_사람_id와_이름을_담고_없으면_pendingRequest_는_null이다() {
+		house.activate();
+		Period active = period(1, PeriodStatus.ACTIVE);
+		Assignment pending = assignment(active, other, "바닥 닦기");
+		assignment(active, other, "분리수거");
+		transferRepository.save(Transfer.request(pending, other, me));
+
+		MemberDetailResponse response = homeService.getMemberDetail(house.getId(), me.getId(), other.getId());
+
+		MemberDetailResponse.MemberAssignment requested = response.assignments().get(0);
+		assertThat(requested.requestPending()).isTrue();
+		assertThat(requested.pendingRequest().toUserId()).isEqualTo(me.getId());
+		assertThat(requested.pendingRequest().toName()).isEqualTo("수아");
+
+		MemberDetailResponse.MemberAssignment plain = response.assignments().get(1);
+		assertThat(plain.requestPending()).isFalse();
+		assertThat(plain.pendingRequest()).isNull();
+	}
+
+	@Test
 	void 상대_상세는_대상이_없거나_구성원이_아니면_실패한다() {
 		house.activate();
 		period(1, PeriodStatus.ACTIVE);

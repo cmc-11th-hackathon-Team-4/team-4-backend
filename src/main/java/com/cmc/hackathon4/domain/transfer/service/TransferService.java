@@ -3,8 +3,10 @@ package com.cmc.hackathon4.domain.transfer.service;
 import java.time.Instant;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
+import com.cmc.hackathon4.domain.assignment.entity.AssignmentStatus;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
+import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
@@ -32,11 +34,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class TransferService {
 
+	private static final int MAX_ASSIGNMENTS_PER_USER = 5;
+
 	private final TransferRepository transferRepository;
 	private final AssignmentRepository assignmentRepository;
 	private final UserRepository userRepository;
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
+	private final HouseRepository houseRepository;
 	private final NotificationService notificationService;
 	private final NotificationRepository notificationRepository;
 
@@ -58,6 +63,7 @@ public class TransferService {
 		if (transferRepository.existsByAssignmentIdAndStatus(assignmentId, TransferStatus.PENDING)) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_REQUEST_PENDING);
 		}
+		checkAssignmentLimit(assignment.getPeriod().getHouse().getId(), assignment.getPeriod().getId(), userId);
 
 		User original = assignment.getAssignee();
 		assignment.changeAssignee(me);
@@ -101,6 +107,7 @@ public class TransferService {
 		User me = getUser(userId);
 		Transfer transfer = getReceivedPendingTransfer(userId, transferId);
 		Assignment assignment = transfer.getAssignment();
+		checkAssignmentLimit(assignment.getPeriod().getHouse().getId(), assignment.getPeriod().getId(), userId);
 		transfer.accept(Instant.now());
 		assignment.changeAssignee(me);
 		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_ACCEPTED,
@@ -143,13 +150,16 @@ public class TransferService {
 			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE, "내가 덜어간 짐만 되돌릴 수 있습니다.");
 		}
 		Assignment assignment = transfer.getAssignment();
-		if (transfer.getStatus() != TransferStatus.ACCEPTED || assignment.isDone()
+		if (transfer.getStatus() != TransferStatus.ACCEPTED || assignment.isDone() || assignment.isDeleted()
 				|| !assignment.getAssignee().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
 		}
 		if (assignment.getPeriod().isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
 		}
+		// 짐이 돌아가는 원래 담당자의 짐이 이미 한도라면 되돌릴 수 없다
+		checkAssignmentLimit(assignment.getPeriod().getHouse().getId(), assignment.getPeriod().getId(),
+				transfer.getFromUser().getId());
 		// 가져간 사람이 그 짐을 다시 누구에게 부탁해 둔 상태였다면 함께 취소한다.
 		for (Transfer pending : transferRepository.findAllByAssignmentIdAndStatus(assignment.getId(),
 				TransferStatus.PENDING)) {
@@ -181,6 +191,16 @@ public class TransferService {
 		notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(userId, transferId,
 				NotificationType.CHORE_RELIEVED).forEach(notification -> notification.markRead(now));
 		return TransferConverter.toHeartResponse(transfer);
+	}
+
+	/** 집 행을 잠근 뒤 그 기간에서 사용자의 남은(TODO) 짐이 한도(5개)에 이르렀으면 막는다. 동시에 짐이 늘어나는 것을 막으려고 잠근다. */
+	private void checkAssignmentLimit(Long houseId, Long periodId, Long userId) {
+		houseRepository.findByIdForUpdate(houseId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+		if (assignmentRepository.countByPeriodIdAndAssigneeIdAndStatusAndDeletedAtIsNull(periodId, userId,
+				AssignmentStatus.TODO) >= MAX_ASSIGNMENTS_PER_USER) {
+			throw new BusinessException(ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
+		}
 	}
 
 	/** 내가 받은 PENDING 부탁을 찾는다. 없으면 404, 받는 사람이 아니면 403, PENDING 이 아니면 409. */

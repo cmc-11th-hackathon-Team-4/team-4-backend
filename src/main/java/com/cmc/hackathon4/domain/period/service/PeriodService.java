@@ -111,6 +111,11 @@ public class PeriodService {
 
 	private void endPeriod(Period period, Instant now) {
 		period.end(now);
+		// 시작한 뒤 추가된 집안일은 그 기간에만 유효하다. 비활성화하면 다음 배분·이월·목록에서 빠진다.
+		choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(period.getHouse().getId())
+				.stream()
+				.filter(Chore::isTemporary)
+				.forEach(Chore::deactivate);
 		transferRepository.findAllByPeriodIdAndStatus(period.getId(), TransferStatus.PENDING)
 				.forEach(transfer -> transfer.cancel(now));
 

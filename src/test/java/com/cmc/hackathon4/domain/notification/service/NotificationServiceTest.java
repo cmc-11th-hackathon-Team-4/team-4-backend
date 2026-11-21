@@ -1,11 +1,23 @@
 package com.cmc.hackathon4.domain.notification.service;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
+import com.cmc.hackathon4.domain.assignment.entity.Assignment;
+import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
+import com.cmc.hackathon4.domain.chore.entity.Chore;
+import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
+import com.cmc.hackathon4.domain.house.entity.House;
+import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.dto.NotificationResponse;
 import com.cmc.hackathon4.domain.notification.entity.Notification;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
+import com.cmc.hackathon4.domain.period.entity.Period;
+import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.transfer.entity.Transfer;
+import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
 import com.cmc.hackathon4.domain.user.entity.CharacterType;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
@@ -30,6 +42,16 @@ class NotificationServiceTest {
 	NotificationRepository notificationRepository;
 	@Autowired
 	UserRepository userRepository;
+	@Autowired
+	HouseRepository houseRepository;
+	@Autowired
+	PeriodRepository periodRepository;
+	@Autowired
+	ChoreRepository choreRepository;
+	@Autowired
+	AssignmentRepository assignmentRepository;
+	@Autowired
+	TransferRepository transferRepository;
 
 	User me;
 	User other;
@@ -103,6 +125,24 @@ class NotificationServiceTest {
 
 		assertThat(notificationService.findMissed(me.getId(), n1.getId())).extracting(NotificationResponse::id)
 				.containsExactly(n2.getId(), n3.getId());
+	}
+
+	@Test
+	void 짐_이동과_연결된_알림은_choreName_을_담고_그_외에는_null이다() {
+		House house = houseRepository.save(new House("302호 우리집", "NOTI-1"));
+		Period period = periodRepository.save(new Period(house, 1, LocalDate.of(2026, 11, 23), LocalDate.of(2026, 11, 29)));
+		period.start();
+		Chore chore = choreRepository.save(new Chore(house, "설거지"));
+		Assignment assignment = assignmentRepository.save(new Assignment(period, chore, me, false));
+		Transfer transfer = transferRepository.save(Transfer.relieve(assignment, me, other, Instant.now()));
+		notificationService.send(me, other, transfer, NotificationType.CHORE_RELIEVED, "민지가 설거지를 덜어갔어요");
+		notificationService.send(me, null, null, NotificationType.PERIOD_STARTED, "새 집안일이 배분됐어요");
+
+		// 최신순이라 시스템 알림(짐 없음)이 먼저 온다
+		List<NotificationResponse> all = notificationService.findMine(me.getId(), false, null);
+
+		assertThat(all).extracting(NotificationResponse::choreName).containsExactly(null, "설거지");
+		assertThat(all.get(1).transferId()).isEqualTo(transfer.getId());
 	}
 
 }

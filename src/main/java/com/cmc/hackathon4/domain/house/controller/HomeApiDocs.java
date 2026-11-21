@@ -22,7 +22,7 @@ public interface HomeApiDocs {
 	ApiResponse<HomeResponse> getHome(@Parameter(description = "집 ID", example = "1") Long houseId, User user);
 
 	@Operation(summary = "상대 상세 조회", description = "메인 레일에서 상대를 눌렀을 때(V5-07). 상대의 남은(TODO) 짐만 반환하며, "
-			+ "부탁 중인 짐은 requestPending=true.")
+			+ "부탁 중인 짐은 requestPending=true 이고 pendingRequest { toUserId, toName } 에 받는 사람을 담는다(부탁 없으면 pendingRequest=null).")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
 	@ApiErrorCodes({ ErrorCode.USER_NOT_FOUND, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.PERIOD_NOT_FOUND })
 	@ApiErrorCase(code = ErrorCode.HOUSE_NOT_MEMBER, when = "요청자 또는 대상이 집 구성원이 아님")
