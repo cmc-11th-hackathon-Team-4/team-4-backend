@@ -109,6 +109,18 @@ class PeriodServiceTest {
 	}
 
 	@Test
+	void 기간은_1_3_7일만_늘릴_수_있고_에러는_days_필드로_나간다() {
+		startFirstPeriod();
+
+		assertThatThrownBy(() -> periodService.extend(houseId, ownerId, new PeriodExtendRequest(2)))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(e -> {
+					assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).startsWith("days:");
+				});
+	}
+
+	@Test
 	void 방장이_아니면_기간을_늘리거나_종료할_수_없다() {
 		startFirstPeriod();
 

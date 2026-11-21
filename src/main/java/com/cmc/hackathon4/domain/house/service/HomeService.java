@@ -86,7 +86,12 @@ public class HomeService {
 		houseMemberValidator.getMember(houseId, userId);
 		User target = userRepository.findById(targetUserId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-		houseMemberValidator.getMember(houseId, targetUserId);
+		try {
+			houseMemberValidator.getMember(houseId, targetUserId);
+		} catch (BusinessException e) {
+			// 요청자가 아니라 조회 대상이 구성원이 아닌 경우라 문구를 구분한다
+			throw new BusinessException(e.getErrorCode(), "이 집의 구성원이 아닌 사용자입니다.");
+		}
 
 		Period period = periodRepository.findFirstByHouseIdAndStatusNotOrderByRoundDesc(houseId, PeriodStatus.READY)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
