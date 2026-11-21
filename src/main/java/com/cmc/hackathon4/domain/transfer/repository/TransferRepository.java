@@ -29,8 +29,8 @@ public interface TransferRepository extends JpaRepository<Transfer, Long> {
 	List<Transfer> findAllByPeriodIdAndStatus(@Param("periodId") Long periodId,
 			@Param("status") TransferStatus status);
 
-	/** 내가 받은 하트 수: 내가 덜어간(toUser) 이동 중 하트가 찍힌 것 */
-	long countByToUserIdAndHeartedAtIsNotNull(Long toUserId);
+	/** 내가 받은 하트 수: 내가 덜어간(toUser) 이동 중 하트가 찍힌 것. 되돌려진(CANCELED) 이동의 하트는 세지 않는다. */
+	long countByToUserIdAndStatusAndHeartedAtIsNotNull(Long toUserId, TransferStatus status);
 
 	/** 이동 하나. 짐(기간·집·집안일·담당자)과 보낸·받는 사람을 함께 가져온다. */
 	@EntityGraph(attributePaths = {"assignment", "assignment.period", "assignment.chore", "assignment.assignee",

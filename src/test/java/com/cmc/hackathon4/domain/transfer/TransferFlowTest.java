@@ -272,6 +272,19 @@ class TransferFlowTest {
 		expectError(() -> transferService.heart(suah.getId(), requestId), ErrorCode.TRANSFER_ALREADY_HANDLED);
 	}
 
+	@Test
+	void 하트를_받은_덜어가기를_되돌리면_받은_하트_수에서_빠진다() {
+		Long transferId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		transferService.heart(suah.getId(), transferId);
+		assertThat(transferRepository.countByToUserIdAndStatusAndHeartedAtIsNotNull(minji.getId(),
+				TransferStatus.ACCEPTED)).isEqualTo(1);
+
+		transferService.cancel(minji.getId(), transferId);
+
+		assertThat(transferRepository.countByToUserIdAndStatusAndHeartedAtIsNotNull(minji.getId(),
+				TransferStatus.ACCEPTED)).isZero();
+	}
+
 	// ---- 개인 한도(5개) ----
 
 	private void giveTodoAssignments(User user, int count) {
