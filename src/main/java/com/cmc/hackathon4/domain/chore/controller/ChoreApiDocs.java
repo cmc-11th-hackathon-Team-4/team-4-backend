@@ -1,5 +1,6 @@
 package com.cmc.hackathon4.domain.chore.controller;
 
+import com.cmc.hackathon4.domain.chore.dto.ChoreBulkSaveRequest;
 import com.cmc.hackathon4.domain.chore.dto.ChoreListResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChorePresetResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -21,5 +22,14 @@ public interface ChoreApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "이 집의 구성원이 아님 (HOUSE-403-1)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404), 집 없음 (HOUSE-404)")
 	ApiResponse<ChoreListResponse> findChores(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
+
+	@Operation(summary = "집안일 고르기 일괄 저장", description = "집안일 고르기 화면(S-04)에서 방장이 '다음'을 누를 때. WAITING 상태에서만 가능하며 기존 목록을 통째로 교체한다(보낸 names 가 최종 목록). 시작 후에는 집안일 추가 API 를 사용한다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "빈 목록, 이름 길이 위반, 중복 이름 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403), 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404), 집 없음 (HOUSE-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 진행 중 (HOUSE-409-2), 이미 시작된 집 (HOUSE-409-4)")
+	ApiResponse<ChoreListResponse> replaceChores(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
+			ChoreBulkSaveRequest request);
 
 }

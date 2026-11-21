@@ -6,6 +6,7 @@ import com.cmc.hackathon4.domain.chore.dto.ChoreListResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChorePresetResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChoreResponse;
 import com.cmc.hackathon4.domain.chore.entity.Chore;
+import com.cmc.hackathon4.domain.house.entity.House;
 
 /** 집안일 도메인의 Entity ↔ DTO 변환을 모아 둔다. */
 public final class ChoreConverter {
@@ -15,6 +16,10 @@ public final class ChoreConverter {
 
 	public static ChorePresetResponse toPresetResponse(List<String> presets) {
 		return new ChorePresetResponse(presets);
+	}
+
+	public static Chore toEntity(House house, String name) {
+		return new Chore(house, name);
 	}
 
 	public static ChoreResponse toResponse(Chore chore) {

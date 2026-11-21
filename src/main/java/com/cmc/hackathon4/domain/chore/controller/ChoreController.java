@@ -1,14 +1,18 @@
 package com.cmc.hackathon4.domain.chore.controller;
 
+import com.cmc.hackathon4.domain.chore.dto.ChoreBulkSaveRequest;
 import com.cmc.hackathon4.domain.chore.dto.ChoreListResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChorePresetResponse;
 import com.cmc.hackathon4.domain.chore.service.ChoreService;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,6 +33,13 @@ public class ChoreController implements ChoreApiDocs {
 	@GetMapping("/houses/{houseId}/chores")
 	public ApiResponse<ChoreListResponse> findChores(@CurrentUser User user, @PathVariable Long houseId) {
 		return ApiResponse.ok(choreService.findChores(houseId, user.getId()));
+	}
+
+	@Override
+	@PutMapping("/houses/{houseId}/chores")
+	public ApiResponse<ChoreListResponse> replaceChores(@CurrentUser User user, @PathVariable Long houseId,
+			@Valid @RequestBody ChoreBulkSaveRequest request) {
+		return ApiResponse.ok(choreService.replaceChores(houseId, user.getId(), request));
 	}
 
 }
