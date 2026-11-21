@@ -7,6 +7,7 @@ import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +30,13 @@ public class TransferController implements TransferApiDocs {
 	@PostMapping("/{transferId}/decline")
 	public ApiResponse<TransferStatusResponse> decline(@CurrentUser User user, @PathVariable Long transferId) {
 		return ApiResponse.ok(transferService.decline(user.getId(), transferId));
+	}
+
+	@Override
+	@DeleteMapping("/{transferId}")
+	public ApiResponse<Void> cancel(@CurrentUser User user, @PathVariable Long transferId) {
+		transferService.cancel(user.getId(), transferId);
+		return ApiResponse.ok();
 	}
 
 }

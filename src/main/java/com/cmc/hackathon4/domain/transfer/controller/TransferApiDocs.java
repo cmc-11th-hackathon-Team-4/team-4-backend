@@ -27,4 +27,11 @@ public interface TransferApiDocs {
 	ApiResponse<TransferStatusResponse> decline(User user,
 			@Parameter(description = "부탁(transfer) ID", example = "2") Long transferId);
 
+	@Operation(summary = "부탁 취소·덜어가기 되돌리기", description = "PENDING 인 REQUEST 는 요청자가 취소(CANCELED)한다. RELIEVE 는 가져간 사람이 되돌리며 짐이 원래 담당자에게 돌아간다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소·되돌리기 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "취소·되돌릴 권한 없음 (TRANSFER-403)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "요청 없음 (TRANSFER-404) / 등록되지 않은 기기 (USER-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 처리된 요청 (TRANSFER-409) / 종료된 기간 (PERIOD-409)")
+	ApiResponse<Void> cancel(User user, @Parameter(description = "부탁(transfer) ID", example = "1") Long transferId);
+
 }

@@ -15,6 +15,7 @@ import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
 import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
 import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
+import com.cmc.hackathon4.domain.transfer.entity.TransferType;
 import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
@@ -113,6 +114,46 @@ public class TransferService {
 		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_DECLINED,
 				me.getName() + "가 " + transfer.getAssignment().getChore().getName() + "는 다음에 받는대요");
 		return TransferConverter.toStatusResponse(transfer);
+	}
+
+	/**
+	 * 부탁 취소·덜어가기 되돌리기(#24). REQUEST 는 요청자(fromUser)가 PENDING 일 때만 취소한다.
+	 * RELIEVE 는 가져간 사람(toUser)이 되돌리며, 짐이 아직 내 TODO 일 때만 가능하고 짐은 원래 담당자에게 돌아간다.
+	 * 되돌린 이동은 CANCELED 로 남긴다.
+	 */
+	@Transactional
+	public void cancel(Long userId, Long transferId) {
+		Transfer transfer = getTransfer(transferId);
+		Instant now = Instant.now();
+		if (transfer.getType() == TransferType.REQUEST) {
+			if (!transfer.getFromUser().getId().equals(userId)) {
+				throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+			}
+			if (!transfer.isPending()) {
+				throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
+			}
+			transfer.cancel(now);
+			return;
+		}
+
+		if (!transfer.getToUser().getId().equals(userId)) {
+			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+		}
+		Assignment assignment = transfer.getAssignment();
+		if (transfer.getStatus() != TransferStatus.ACCEPTED || assignment.isDone()
+				|| !assignment.getAssignee().getId().equals(userId)) {
+			throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
+		}
+		if (assignment.getPeriod().isEnded()) {
+			throw new BusinessException(ErrorCode.PERIOD_ENDED);
+		}
+		// 가져간 사람이 그 짐을 다시 누구에게 부탁해 둔 상태였다면 함께 취소한다.
+		for (Transfer pending : transferRepository.findAllByAssignmentIdAndStatus(assignment.getId(),
+				TransferStatus.PENDING)) {
+			pending.cancel(now);
+		}
+		transfer.cancel(now);
+		assignment.changeAssignee(transfer.getFromUser());
 	}
 
 	/** 내가 받은 PENDING 부탁을 찾는다. 없으면 404, 받는 사람이 아니면 403, PENDING 이 아니면 409. */
