@@ -1,0 +1,84 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 배포가 겹치지 않게 한 번에 하나만 실행한다
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build boot jar
+        # 해커톤 속도 우선: 테스트는 건너뛴다 (-x test)
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootJar -x test
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload jar and env file to S3
+        env:
+          APP_ENV: ${{ secrets.APP_ENV }}
+        run: |
+          # build.gradle 에서 plain jar 를 끄고 이름을 backend.jar 로 고정해 두었다
+          aws s3 cp build/libs/backend.jar "s3://$S3_BUCKET/deploy/backend.jar" --only-show-errors
+          # APP_ENV 는 SSM 명령 파라미터(이력에 남음)에 넣지 않고 S3 로만 전달한다
+          if [ -n "$APP_ENV" ]; then
+            printf '%s\n' "$APP_ENV" | tr -d '\r' \
+              | aws s3 cp - "s3://$S3_BUCKET/deploy/.env" --only-show-errors
+          fi
+
+      - name: Deploy on instance via SSM
+        run: |
+          # 인스턴스 쪽 로직은 scripts/ec2-setup.sh 가 설치한 /usr/local/bin/team4-deploy.sh 에 있다
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "deploy ${GITHUB_SHA::7}" \
+            --parameters "{\"commands\":[\"/usr/local/bin/team4-deploy.sh $S3_BUCKET $AWS_REGION\"]}" \
+            --query Command.CommandId --output text)
+          echo "ssm command id: $CMD_ID"
+
+          # `aws ssm wait` 는 타임아웃이 짧고 실패 시 출력이 없어서 직접 폴링한다 (최대 5분)
+          STATUS=Pending
+          for _ in $(seq 1 60); do
+            sleep 5
+            STATUS=$(aws ssm get-command-invocation --command-id "$CMD_ID" \
+              --instance-id "$EC2_INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in
+              Pending|InProgress|Delayed) ;;
+              *) break ;;
+            esac
+          done
+
+          echo "----- stdout -----"
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardOutputContent --output text || true
+          echo "----- stderr -----"
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$EC2_INSTANCE_ID" \
+            --query StandardErrorContent --output text || true
+          echo "----- status: $STATUS -----"
+          [ "$STATUS" = "Success" ]
