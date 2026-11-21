@@ -61,4 +61,10 @@ public class PeriodController implements PeriodApiDocs {
 		return ApiResponse.ok(periodService.createNext(houseId, user.getId()));
 	}
 
+	@Override
+	@GetMapping("/houses/{houseId}/periods/next")
+	public ApiResponse<NextPeriodResponse> getNext(@CurrentUser User user, @PathVariable Long houseId) {
+		return ApiResponse.ok(periodService.getNext(houseId, user.getId()));
+	}
+
 }

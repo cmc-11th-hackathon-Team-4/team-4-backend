@@ -193,6 +193,17 @@ public class PeriodService {
 		return PeriodConverter.toNextPeriodResponse(getPeriod(next.getId()), members, assignments, userId);
 	}
 
+	/** 서버에 저장된 다음 기간 배분을 구성원 누구나 조회한다. 아직 없으면 에러 대신 prepared=false. */
+	public NextPeriodResponse getNext(Long houseId, Long userId) {
+		houseMemberValidator.getMember(houseId, userId);
+		Period previous = getPreviousEndedPeriod(houseId);
+		return findReadyNext(houseId, previous).map(next -> {
+			List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
+			List<Assignment> assignments = assignmentRepository.findAllByPeriodIdOrderByIdAsc(next.getId());
+			return PeriodConverter.toNextPeriodResponse(next, members, assignments, userId);
+		}).orElseGet(NextPeriodResponse::notPrepared);
+	}
+
 	/**
 	 * 다음 주기 API 의 기준이 되는 직전 ENDED 기간. 진행 중(ACTIVE)인 기간이 1회차면 아직 종료되지 않은 것(PERIOD-409-1), 2회차 이후면 다음 기간이 이미 시작된 것(PERIOD-409-2)이다.
 	 */

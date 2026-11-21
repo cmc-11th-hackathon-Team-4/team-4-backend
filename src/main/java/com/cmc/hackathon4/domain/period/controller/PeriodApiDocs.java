@@ -54,4 +54,11 @@ public interface PeriodApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "직전 기간이 종료되지 않음 (PERIOD-409-1) / 이미 다음 기간이 시작됨 (PERIOD-409-2)")
 	ApiResponse<NextPeriodResponse> createNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
+	@Operation(summary = "다음 주기 배분 조회", description = "방장이 저장해 둔 다음 기간(READY)의 배분을 구성원 누구나 조회한다. 방장이 아직 만들지 않았으면 에러 대신 prepared=false 로 내려준다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "직전 기간이 종료되지 않음 (PERIOD-409-1) / 이미 다음 기간이 시작됨 (PERIOD-409-2)")
+	ApiResponse<NextPeriodResponse> getNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
+
 }
