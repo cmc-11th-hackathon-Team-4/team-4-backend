@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/testitem` 이 하위 패키지 6개를 모두 갖춘 형태, `global/`).
+Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/chore` 가 하위 패키지 6개를 모두 갖춘 형태, `global/`).
 구성·흐름은 `docs/architecture.md`, 로컬 실행은 `docs/local-dev.md`, 배포는 `docs/deploy.md`, 결정 이유는 `docs/adr/`.
 
 ## 필수
@@ -28,7 +28,7 @@ Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 
   | `converter/` | `XxxConverter` (요청 DTO → Entity, Entity → 응답 DTO) |
   | `dto/` | `XxxCreateRequest`, `XxxUpdateRequest`, `XxxResponse` 등 record |
 
-- 도메인명은 영어 소문자 (예: `user`, `testitem`). `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다.
+- 도메인명은 영어 소문자 (예: `user`, `chore`). `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다.
 
 ```
 com/cmc/hackathon4/
@@ -77,7 +77,6 @@ com/cmc/hackathon4/
 | 로컬 환경변수 추가 | `application-local.yml` + `.env.example` + `docs/local-dev.md` |
 | 인프라 구성요소 추가 (예: Redis) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
 | 프론트 주소 추가 | `application.yml` 의 `app.cors.allowed-origin-patterns` |
-| `[TEST]` 임시 도메인 삭제 | 도메인 패키지 + `ErrorCode` 항목. DB 테이블은 `ddl-auto` 가 지우지 않으므로 직접 삭제 |
 
 문서 수정 후 `bash scripts/check-docs.sh` 로 문서와 코드가 맞는지 확인한다. PR 을 올리면 `PR Check` 워크플로가 같은 검사를 자동으로 돌린다.
 

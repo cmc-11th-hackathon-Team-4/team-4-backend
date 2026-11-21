@@ -36,17 +36,14 @@ src/main/java/com/cmc/hackathon4/
 │   ├── health/                     #   가장 단순한 형태 (DB 없음)
 │   │   ├── controller/   HealthController, HealthApiDocs
 │   │   └── dto/          HealthResponse
-│   ├── testitem/                   #   [TEST] 임시 도메인. 하위 패키지 6개를 모두 갖춘 기준 예시
-│   │   ├── controller/   TestItemController, TestItemApiDocs (Swagger 어노테이션은 ApiDocs 에만)
-│   │   ├── service/      TestItemService
-│   │   ├── repository/   TestItemRepository
-│   │   ├── entity/       TestItem
-│   │   ├── converter/    TestItemConverter (toEntity / toResponse, static)
-│   │   └── dto/          TestItemCreateRequest, TestItemUpdateRequest, TestItemResponse (record)
-│   └── testredis/                  #   [TEST] 임시 도메인 (Redis 예시)
-│       ├── controller/   TestRedisController, TestRedisApiDocs
-│       ├── service/      TestRedisService
-│       └── dto/          TestRedisSaveRequest, TestRedisResponse
+│   ├── chore/                      #   하위 패키지 6개를 모두 갖춘 기준 예시
+│   │   ├── controller/   ChoreController, ChoreApiDocs (Swagger 어노테이션은 ApiDocs 에만)
+│   │   ├── service/      ChoreService
+│   │   ├── repository/   ChoreRepository
+│   │   ├── entity/       Chore
+│   │   ├── converter/    ChoreConverter (toEntity / toResponse, static)
+│   │   └── dto/          ChoreCreateRequest, ChoreResponse ... (record)
+│   └── ...                         #   user, house, period, assignment, transfer, notification
 └── global/                         # 여러 도메인이 함께 쓰는 것만
     ├── config/                 #   JpaAuditingConfig, SwaggerConfig, WebConfig(CORS)
     ├── entity/                 #   BaseTimeEntity (createdAt / updatedAt)
@@ -57,7 +54,7 @@ src/main/java/com/cmc/hackathon4/
 
 규칙:
 
-- 새 기능 = `domain/{도메인명}/` 새 패키지. 도메인명은 영어 소문자 한 단어(필요하면 붙여 쓰기, 예: `testitem`).
+- 새 기능 = `domain/{도메인명}/` 새 패키지. 도메인명은 영어 소문자 한 단어(필요하면 붙여 쓰기, 예: `chore`).
 - 도메인 안은 `controller/`(Controller, ApiDocs), `service/`, `repository/`, `entity/`(엔티티), `converter/`(DTO↔Entity 변환, [ADR 0008](adr/0008-converter-classes.md)), `dto/`(Request/Response record) 로 나눈다. 클래스가 없는 하위 패키지는 만들지 않는다.
 - `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다. 한 도메인에서만 쓰는 클래스는 그 도메인 패키지에 둔다.
 - 이름·코드 규칙은 [AGENTS.md](../AGENTS.md) 를 따른다.

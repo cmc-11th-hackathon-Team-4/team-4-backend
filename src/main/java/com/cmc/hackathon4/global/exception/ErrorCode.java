@@ -62,11 +62,7 @@ public enum ErrorCode {
 
 	// 알림
 	NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION-404", "알림을 찾을 수 없습니다."),
-	NOTIFICATION_NOT_MINE(HttpStatus.FORBIDDEN, "NOTIFICATION-403", "내 알림이 아닙니다."),
-
-	// [TEST] 임시 테스트 API
-	TEST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEST-ITEM-404", "테스트 아이템을 찾을 수 없습니다."),
-	TEST_REDIS_KEY_NOT_FOUND(HttpStatus.NOT_FOUND, "TEST-REDIS-404", "Redis 키가 없거나 만료되었습니다.");
+	NOTIFICATION_NOT_MINE(HttpStatus.FORBIDDEN, "NOTIFICATION-403", "내 알림이 아닙니다.");
 
 	private final HttpStatus status;
 	private final String code;
