@@ -1,5 +1,7 @@
 package com.cmc.hackathon4.domain.period.repository;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import com.cmc.hackathon4.domain.period.entity.Period;
@@ -19,5 +21,8 @@ public interface PeriodRepository extends JpaRepository<Period, Long> {
 
 	/** 특정 상태의 가장 최근 회차 (예: 직전 ENDED 기간) */
 	Optional<Period> findFirstByHouseIdAndStatusOrderByRoundDesc(Long houseId, PeriodStatus status);
+
+	/** 특정 상태이면서 결산일(endDate)이 date 보다 앞선 기간 (자동 종료 대상 찾기) */
+	List<Period> findAllByStatusAndEndDateBefore(PeriodStatus status, LocalDate date);
 
 }

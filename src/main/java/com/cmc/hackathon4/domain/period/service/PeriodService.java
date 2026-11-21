@@ -79,17 +79,42 @@ public class PeriodService {
 	public PeriodEndResponse end(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
 		Period period = getActivePeriod(houseId);
-		Instant now = Instant.now();
+		endPeriod(period, Instant.now());
+		return PeriodConverter.toEndResponse(period);
+	}
+
+	/** 결산일(endDate)이 today 보다 앞선 진행 중 기간의 id. 자동 종료 스케줄러가 쓴다. */
+	public List<Long> findExpiredPeriodIds(LocalDate today) {
+		return periodRepository.findAllByStatusAndEndDateBefore(PeriodStatus.ACTIVE, today)
+				.stream()
+				.map(Period::getId)
+				.toList();
+	}
+
+	/**
+	 * 결산일이 지난 기간을 #28 과 같은 방식으로 종료한다. 그 사이 방장이 직접 종료했거나 기간을 늘렸으면 아무것도 하지 않는다.
+	 * @return 실제로 종료했으면 true
+	 */
+	@Transactional
+	public boolean endIfExpired(Long periodId, LocalDate today) {
+		Period period = periodRepository.findById(periodId).orElse(null);
+		if (period == null || period.getStatus() != PeriodStatus.ACTIVE || !period.getEndDate().isBefore(today)) {
+			return false;
+		}
+		endPeriod(period, Instant.now());
+		return true;
+	}
+
+	private void endPeriod(Period period, Instant now) {
 		period.end(now);
 		transferRepository.findAllByPeriodIdAndStatus(period.getId(), TransferStatus.PENDING)
 				.forEach(transfer -> transfer.cancel(now));
 
-		List<User> everyone = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId)
+		List<User> everyone = houseMemberRepository.findAllByHouseIdOrderByIdAsc(period.getHouse().getId())
 				.stream()
 				.map(HouseMember::getUser)
 				.toList();
 		notificationService.sendAll(everyone, null, null, NotificationType.PERIOD_ENDED, "이번 주 결산이 도착했어요");
-		return PeriodConverter.toEndResponse(period);
 	}
 
 	/** 종료된 기간의 결산 상세. 그 집의 구성원만, ENDED 기간만 조회할 수 있다. */
