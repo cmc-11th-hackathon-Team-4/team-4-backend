@@ -4,6 +4,7 @@ import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserHouseResponse;
 import com.cmc.hackathon4.domain.user.dto.UserMeResponse;
+import com.cmc.hackathon4.domain.user.dto.UserMoodResponse;
 import com.cmc.hackathon4.domain.user.dto.UserResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
 
@@ -19,6 +20,10 @@ public final class UserConverter {
 
 	public static UserResponse toResponse(User user) {
 		return new UserResponse(user.getId(), user.getName(), user.getCharacterType(), user.getMood());
+	}
+
+	public static UserMoodResponse toMoodResponse(User user) {
+		return new UserMoodResponse(user.getMood());
 	}
 
 	/** membership 이 null 이면 소속 집이 없는 것으로 보고 house 를 null 로 둔다. */

@@ -2,6 +2,8 @@ package com.cmc.hackathon4.domain.user.controller;
 
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserMeResponse;
+import com.cmc.hackathon4.domain.user.dto.UserMoodResponse;
+import com.cmc.hackathon4.domain.user.dto.UserMoodUpdateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserResponse;
 import com.cmc.hackathon4.domain.user.dto.UserUpdateRequest;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -40,6 +42,13 @@ public class UserController implements UserApiDocs {
 	@PatchMapping("/me")
 	public ApiResponse<UserResponse> update(@CurrentUser User user, @Valid @RequestBody UserUpdateRequest request) {
 		return ApiResponse.ok(userService.update(user.getId(), request));
+	}
+
+	@Override
+	@PatchMapping("/me/mood")
+	public ApiResponse<UserMoodResponse> updateMood(@CurrentUser User user,
+			@Valid @RequestBody UserMoodUpdateRequest request) {
+		return ApiResponse.ok(userService.updateMood(user.getId(), request));
 	}
 
 }

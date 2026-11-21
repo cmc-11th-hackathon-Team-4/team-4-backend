@@ -2,6 +2,8 @@ package com.cmc.hackathon4.domain.user.controller;
 
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserMeResponse;
+import com.cmc.hackathon4.domain.user.dto.UserMoodResponse;
+import com.cmc.hackathon4.domain.user.dto.UserMoodUpdateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserResponse;
 import com.cmc.hackathon4.domain.user.dto.UserUpdateRequest;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -28,5 +30,11 @@ public interface UserApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 검증 실패 (COMMON-400)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 X-Device-Id (USER-404)")
 	ApiResponse<UserResponse> update(User user, UserUpdateRequest request);
+
+	@Operation(summary = "기분 변경", description = "내 기분을 바꾼다. 이전 값이 NO_CHOICE 가 아니었다가 NO_CHOICE 로 바뀌면 같은 집의 나머지 구성원 전원에게 MOOD_NO_CHOICE 알림이 생성된다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "변경 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 검증 실패 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 X-Device-Id (USER-404)")
+	ApiResponse<UserMoodResponse> updateMood(User user, UserMoodUpdateRequest request);
 
 }
