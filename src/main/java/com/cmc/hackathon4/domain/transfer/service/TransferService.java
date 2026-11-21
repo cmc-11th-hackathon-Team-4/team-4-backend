@@ -104,6 +104,17 @@ public class TransferService {
 		return TransferConverter.toAcceptResponse(transfer);
 	}
 
+	/** 부탁 거절(#23). 받는 사람만 가능. 짐은 그대로 두고 부탁한 사람에게 REQUEST_DECLINED 알림이 간다. */
+	@Transactional
+	public TransferStatusResponse decline(Long userId, Long transferId) {
+		User me = getUser(userId);
+		Transfer transfer = getReceivedPendingTransfer(userId, transferId);
+		transfer.decline(Instant.now());
+		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_DECLINED,
+				me.getName() + "가 " + transfer.getAssignment().getChore().getName() + "는 다음에 받는대요");
+		return TransferConverter.toStatusResponse(transfer);
+	}
+
 	/** 내가 받은 PENDING 부탁을 찾는다. 없으면 404, 받는 사람이 아니면 403, PENDING 이 아니면 409. */
 	private Transfer getReceivedPendingTransfer(Long userId, Long transferId) {
 		Transfer transfer = getTransfer(transferId);

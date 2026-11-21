@@ -1,6 +1,7 @@
 package com.cmc.hackathon4.domain.transfer.controller;
 
 import com.cmc.hackathon4.domain.transfer.dto.TransferAcceptResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,14 @@ public interface TransferApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "요청 없음 (TRANSFER-404) / 등록되지 않은 기기 (USER-404)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 처리된 요청 (TRANSFER-409)")
 	ApiResponse<TransferAcceptResponse> accept(User user,
+			@Parameter(description = "부탁(transfer) ID", example = "2") Long transferId);
+
+	@Operation(summary = "부탁 거절", description = "받은 부탁을 거절한다. 받는 사람만 가능하며 짐은 원래 담당자에게 그대로 남는다. 부탁한 사람에게 REQUEST_DECLINED 알림이 간다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "거절 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "내가 받은 요청이 아님 (TRANSFER-403)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "요청 없음 (TRANSFER-404) / 등록되지 않은 기기 (USER-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 처리된 요청 (TRANSFER-409)")
+	ApiResponse<TransferStatusResponse> decline(User user,
 			@Parameter(description = "부탁(transfer) ID", example = "2") Long transferId);
 
 }
