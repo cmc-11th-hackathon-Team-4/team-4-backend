@@ -4,6 +4,10 @@ spring:
     url: jdbc:mysql://localhost:3307/hackathon4?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&characterEncoding=UTF-8
     username: hackathon4
     password: hackathon4
+  data:
+    redis:
+      host: localhost
+      port: 6380
   jpa:
     properties:
       hibernate:

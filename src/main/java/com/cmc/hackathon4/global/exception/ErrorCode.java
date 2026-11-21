@@ -20,7 +20,8 @@ public enum ErrorCode {
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-500", "서버 오류가 발생했습니다."),
 
 	// [TEST] 임시 테스트 API
-	TEST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEST-ITEM-404", "테스트 아이템을 찾을 수 없습니다.");
+	TEST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEST-ITEM-404", "테스트 아이템을 찾을 수 없습니다."),
+	TEST_REDIS_KEY_NOT_FOUND(HttpStatus.NOT_FOUND, "TEST-REDIS-404", "Redis 키가 없거나 만료되었습니다.");
 
 	private final HttpStatus status;
 	private final String code;
