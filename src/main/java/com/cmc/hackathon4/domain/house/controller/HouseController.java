@@ -10,7 +10,7 @@ import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateResponse;
 import com.cmc.hackathon4.domain.house.service.HouseService;
 import com.cmc.hackathon4.domain.user.entity.User;
-import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
+import com.cmc.hackathon4.global.auth.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

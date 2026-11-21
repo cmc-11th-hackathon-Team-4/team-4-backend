@@ -5,7 +5,7 @@ import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
 import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
 import com.cmc.hackathon4.domain.period.service.DistributionService;
 import com.cmc.hackathon4.domain.user.entity.User;
-import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
+import com.cmc.hackathon4.global.auth.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
