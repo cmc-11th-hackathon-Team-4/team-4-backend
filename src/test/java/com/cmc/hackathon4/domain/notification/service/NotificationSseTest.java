@@ -43,10 +43,12 @@ class NotificationSseTest {
 	TransactionTemplate transactionTemplate;
 
 	User receiver;
+	String receiverDeviceId;
 
 	@BeforeEach
 	void setUp() {
-		receiver = userRepository.save(new User(UUID.randomUUID().toString(), "수아", CharacterType.CHARACTER_1));
+		receiverDeviceId = UUID.randomUUID().toString();
+		receiver = userRepository.save(new User(receiverDeviceId, "수아", CharacterType.CHARACTER_1));
 	}
 
 	@AfterEach
@@ -131,8 +133,7 @@ class NotificationSseTest {
 		NotificationStreamService streamService = new NotificationStreamService(userRepository, notificationService,
 				registry);
 
-		SseEmitter emitter = streamService.subscribe(userRepository.findById(receiver.getId()).orElseThrow().getDeviceId(),
-				String.valueOf(n1));
+		SseEmitter emitter = streamService.subscribe(receiverDeviceId, String.valueOf(n1));
 
 		assertThat(emitter).isNotNull();
 		assertThat(registry.hasConnection(receiver.getId())).isTrue();

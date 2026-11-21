@@ -12,6 +12,7 @@
 | [0006](0006-cors-frontend-only.md) | CORS 는 프론트 주소만 허용 | 채택 |
 | [0007](0007-domain-then-layer-packages.md) | 패키지는 도메인 먼저, 그 안에서 계층별로 | 채택 |
 | [0008](0008-converter-classes.md) | DTO↔Entity 변환은 static Converter 클래스로 | 채택 |
+| [0009](0009-device-id-sha256.md) | deviceId 는 SHA-256 해시로 저장 | 채택 |
 
 ## 새 ADR 쓰는 법
 

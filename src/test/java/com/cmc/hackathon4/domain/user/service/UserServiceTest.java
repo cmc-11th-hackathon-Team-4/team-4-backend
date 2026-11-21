@@ -40,6 +40,19 @@ class UserServiceTest {
 	NotificationRepository notificationRepository;
 
 	@Test
+	void deviceId_는_해시로만_저장되고_원본으로_조회된다() {
+		userService.create(new UserCreateRequest("device-plain", "수아", CharacterType.CHARACTER_1));
+
+		User saved = userRepository.findByDeviceId("device-plain").orElseThrow();
+
+		// SHA-256("device-plain") 의 소문자 hex. MySQL 의 SHA2('device-plain', 256) 과 같은 값이어야 한다.
+		assertThat(saved.getDeviceIdHash()).hasSize(64).doesNotContain("device-plain").matches("[0-9a-f]{64}");
+		assertThat(userRepository.findByDeviceIdHash("device-plain")).isEmpty();
+		// 저장된 해시를 헤더 값으로 보내도 그 사용자로 식별되지 않는다.
+		assertThat(userRepository.findByDeviceId(saved.getDeviceIdHash())).isEmpty();
+	}
+
+	@Test
 	void 같은_deviceId_로_다시_등록하면_USER_409_예외가_난다() {
 		UserCreateRequest request = new UserCreateRequest("device-dup", "수아", CharacterType.CHARACTER_1);
 		userService.create(request);
