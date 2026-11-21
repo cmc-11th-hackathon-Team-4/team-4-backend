@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 # EC2 최초 1회 세팅 스크립트 (Amazon Linux 2023 / Ubuntu 공용)
 # Session Manager 로 접속해서 실행한다 (SSH 불필요):
-#   sudo bash ec2-setup.sh api.example.com
+#   sudo bash ec2-setup.sh                    # 도메인 없이: http://<서버 IP> (80)
+#   sudo bash ec2-setup.sh api.example.com    # 도메인 지정: https://api.example.com (인증서 자동 발급)
 #
 # 하는 일:
 #   1) Java 21, AWS CLI 설치
 #   2) 서비스 전용 유저(team4) + /opt/team4-backend 생성, systemd 서비스 등록
 #   3) 배포 스크립트 /usr/local/bin/team4-deploy.sh 설치 (GitHub Actions 가 SSM 으로 호출)
-#   4) Caddy 설치 + <도메인> -> localhost:8080 리버스 프록시 (Let's Encrypt HTTPS 자동 발급)
-# 여러 번 실행해도 된다 (도메인을 바꿀 때도 다시 실행).
+#   4) Caddy 설치 + localhost:8080 리버스 프록시
+#      (도메인이 없으면 HTTP :80, 있으면 Let's Encrypt HTTPS 자동 발급)
+# 여러 번 실행해도 된다. 도메인을 나중에 붙이거나 바꿀 때는 도메인을 인자로 다시 실행하면 된다.
+# 다시 실행해도 앱 서비스, app.jar, .env 는 건드리지 않는다.
 set -euo pipefail
 
 DOMAIN="${1:-}"
-if [ -z "$DOMAIN" ]; then
-  echo "사용법: sudo bash ec2-setup.sh <도메인>   (예: sudo bash ec2-setup.sh api.example.com)" >&2
-  exit 1
-fi
 if [ "$(id -u)" -ne 0 ]; then
-  echo "root 권한이 필요합니다: sudo bash ec2-setup.sh $DOMAIN" >&2
+  echo "root 권한이 필요합니다: sudo bash ec2-setup.sh [도메인]" >&2
   exit 1
 fi
 
@@ -138,9 +137,11 @@ getent group caddy >/dev/null || groupadd --system caddy
 id caddy >/dev/null 2>&1 || useradd --system --gid caddy --create-home --home-dir /var/lib/caddy \
   --shell /usr/sbin/nologin caddy
 
+# 도메인이 없으면 :80 (HTTP 만, 인증서 발급 시도 없음), 있으면 도메인 (HTTPS 자동)
+SITE="${DOMAIN:-:80}"
 mkdir -p /etc/caddy
 cat > /etc/caddy/Caddyfile <<EOF
-${DOMAIN} {
+${SITE} {
 	reverse_proxy localhost:8080
 }
 EOF
@@ -177,6 +178,12 @@ systemctl restart caddy
 echo
 echo "완료"
 echo "  앱 서비스 : ${SERVICE}.service (user=${APP_USER}, dir=${APP_DIR}) - app.jar 가 없어 아직 시작하지 않음"
-echo "  Caddy     : https://${DOMAIN} -> localhost:8080 (인증서는 DNS 가 이 서버를 가리키면 자동 발급)"
+if [ -n "$DOMAIN" ]; then
+  echo "  Caddy     : https://${DOMAIN} -> localhost:8080 (인증서는 DNS 가 이 서버를 가리키면 자동 발급)"
+else
+  echo "  Caddy     : http://<서버 IP> (80) -> localhost:8080"
+  echo "  ※ HTTPS 는 아직 꺼져 있습니다. 도메인의 A 레코드를 이 서버 IP 로 지정한 뒤 아래 명령을 다시 실행하세요:"
+  echo "      sudo bash ec2-setup.sh <도메인>"
+fi
 echo "  배포      : main 에 push 하면 GitHub Actions 가 /usr/local/bin/team4-deploy.sh 를 실행"
 echo "  로그      : journalctl -u ${SERVICE} -f / journalctl -u caddy -f"

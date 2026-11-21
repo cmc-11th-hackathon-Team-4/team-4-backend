@@ -9,10 +9,17 @@ Spring Boot 4.1.3 / Java 21 백엔드.
 ```
 push → Actions: bootJar → S3(deploy/backend.jar, deploy/.env) → SSM send-command
      → EC2: /usr/local/bin/team4-deploy.sh (S3 에서 받기 → systemd 재시작 → 헬스 체크)
-사용자 → https://<도메인> (Caddy :443) → localhost:8080 (Spring Boot)
+사용자 → Caddy (도메인 전: http://<탄력적 IP> :80 / 도메인 후: https://<도메인> :443) → localhost:8080 (Spring Boot)
 ```
 
 SSH 키와 22 번 포트는 쓰지 않는다. 보안 그룹 인바운드는 `80`, `443` 만 연다.
+
+도메인은 나중에 붙여도 된다. 진행 순서는 두 단계다.
+
+1. **도메인 없이 먼저 띄우기**: 아래 1 → 2 → 3 → 4 를 진행한다. API 는 `http://<탄력적 IP>` 로 열린다.
+2. **도메인을 산 뒤 HTTPS 켜기**: 5 를 진행한다 (A 레코드 지정 → `ec2-setup.sh <도메인>` 재실행). 이후 `https://<도메인>` 으로 열린다.
+
+보안 그룹은 두 단계 모두 `80`, `443` 그대로 둔다.
 
 ### 1. AWS 준비 (콘솔, 순서대로)
 
@@ -64,16 +71,7 @@ SSH 키와 22 번 포트는 쓰지 않는다. 보안 그룹 인바운드는 `80`
    }
    ```
 
-### 2. 도메인
-
-도메인의 **A 레코드를 탄력적 IP 로** 지정한다 (예: `api.example.com`). Caddy 가 Let's Encrypt 인증서를 자동 발급하려면 DNS 가 먼저 이 서버를 가리키고 80/443 이 열려 있어야 한다.
-
-도메인이 없다면:
-
-- **DuckDNS** (권장): <https://www.duckdns.org> 에서 `<이름>.duckdns.org` 를 무료로 만들고 IP 에 탄력적 IP 를 입력한다. `duckdns.org` 는 Public Suffix List 에 등록돼 있어 Let's Encrypt 발급 한도를 서브도메인별로 따로 받는다.
-- **sslip.io** (`<IP 를 대시로>.sslip.io`, 예: `1-2-3-4.sslip.io`): 가입 없이 바로 되지만 Public Suffix List 에 없어서 전 세계 sslip.io 사용자가 Let's Encrypt 주간 발급 한도(등록 도메인당 50 개)를 같이 쓴다. 한도에 걸려 발급이 실패할 수 있으므로 급할 때 임시용으로만 쓴다.
-
-### 3. 서버 1회 세팅 (Session Manager)
+### 2. 서버 1회 세팅 (Session Manager)
 
 1. `scripts/ec2-setup.sh` 를 S3 콘솔에서 버킷의 `deploy/` 폴더에 업로드한다 (비공개 저장소라 서버에서 바로 받을 수 없다).
 2. EC2 콘솔 → 인스턴스 선택 → 연결 → **Session Manager** → 연결. (인스턴스 생성 직후에는 몇 분 걸릴 수 있다.)
@@ -86,12 +84,12 @@ SSH 키와 22 번 포트는 쓰지 않는다. 보안 그룹 인바운드는 `80`
    # Ubuntu (AWS CLI 없음): S3 콘솔 → 객체 → 작업 → "미리 서명된 URL 로 공유" 로 만든 URL 사용
    # curl -fsSL -o ec2-setup.sh '<미리 서명된 URL>'
 
-   sudo bash ec2-setup.sh <도메인>
+   sudo bash ec2-setup.sh
    ```
 
-   Java 21, AWS CLI, 앱 서비스(`team4-backend`, 유저 `team4`, 경로 `/opt/team4-backend`), 배포 스크립트, Caddy 가 설치된다. 도메인을 바꿀 때는 같은 명령을 새 도메인으로 다시 실행한다.
+   Java 21, AWS CLI, 앱 서비스(`team4-backend`, 유저 `team4`, 경로 `/opt/team4-backend`), 배포 스크립트, Caddy 가 설치된다. 도메인 인자 없이 실행하면 Caddy 는 80 번 포트에서 HTTP 로만 프록시한다 (인증서 발급 시도 없음). 도메인이 이미 있고 A 레코드도 지정했다면 처음부터 `sudo bash ec2-setup.sh <도메인>` 으로 실행해도 된다.
 
-### 4. GitHub Secrets 등록
+### 3. GitHub Secrets 등록
 
 Settings → Secrets and variables → Actions
 
@@ -116,10 +114,27 @@ DB_PASSWORD=<DB 비밀번호>
 
 `export` 나 따옴표 없이 `KEY=value` 로만 적는다. `DB_PORT` 는 생략하면 3306.
 
-### 5. 배포
+### 4. 배포
 
 `main` 에 push → Actions 탭에서 확인. 수동 실행은 Actions → Deploy to EC2 → Run workflow.
-배포 후 `https://<도메인>/api/v1/health` 로 확인한다.
+배포 후 `http://<탄력적 IP>/api/v1/health` 로 확인한다 (HTTPS 를 켠 뒤에는 `https://<도메인>/api/v1/health`).
+
+### 5. 도메인 + HTTPS (선택, 나중에 해도 됨)
+
+1. 도메인의 **A 레코드를 탄력적 IP 로** 지정한다 (예: `api.example.com`).
+2. DNS 가 반영되면 Session Manager 로 접속해 스크립트를 도메인과 함께 다시 실행한다.
+
+   ```bash
+   cd /tmp   # ec2-setup.sh 가 없으면 2 의 방법으로 다시 받는다
+   sudo bash ec2-setup.sh <도메인>
+   ```
+
+   Caddyfile 만 도메인용으로 바뀌고 Caddy 가 재시작되면서 Let's Encrypt 인증서를 자동 발급한다. 앱 서비스, `app.jar`, `.env` 는 그대로 유지된다. 발급에는 DNS 가 이 서버를 가리키고 80/443 이 열려 있어야 한다. 이후 `http://<도메인>` 은 `https` 로 리다이렉트되고, IP 로 직접 접근하는 주소는 더 이상 쓰지 않는다 (프론트의 API 주소를 `https://<도메인>` 으로 바꾼다).
+
+도메인을 사지 않고 HTTPS 를 쓰려면:
+
+- **DuckDNS** (권장): <https://www.duckdns.org> 에서 `<이름>.duckdns.org` 를 무료로 만들고 IP 에 탄력적 IP 를 입력한다. `duckdns.org` 는 Public Suffix List 에 등록돼 있어 Let's Encrypt 발급 한도를 서브도메인별로 따로 받는다.
+- **sslip.io** (`<IP 를 대시로>.sslip.io`, 예: `1-2-3-4.sslip.io`): 가입 없이 바로 되지만 Public Suffix List 에 없어서 전 세계 sslip.io 사용자가 Let's Encrypt 주간 발급 한도(등록 도메인당 50 개)를 같이 쓴다. 한도에 걸려 발급이 실패할 수 있으므로 급할 때 임시용으로만 쓴다.
 
 ### 확인 / 디버깅 (Session Manager 에서)
 
