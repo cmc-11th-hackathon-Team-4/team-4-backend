@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.house.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -10,6 +11,7 @@ import com.cmc.hackathon4.domain.assignment.entity.AssignmentStatus;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
 import com.cmc.hackathon4.domain.house.converter.HomeConverter;
 import com.cmc.hackathon4.domain.house.dto.HomeResponse;
+import com.cmc.hackathon4.domain.house.dto.MemberDetailResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
@@ -23,6 +25,9 @@ import com.cmc.hackathon4.domain.transfer.entity.Transfer;
 import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
 import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
 import com.cmc.hackathon4.domain.user.entity.User;
+import com.cmc.hackathon4.domain.user.repository.UserRepository;
+import com.cmc.hackathon4.global.exception.BusinessException;
+import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +44,7 @@ public class HomeService {
 	private final AssignmentRepository assignmentRepository;
 	private final TransferRepository transferRepository;
 	private final NotificationRepository notificationRepository;
+	private final UserRepository userRepository;
 
 	/** #17 내 메인 조회 */
 	public HomeResponse getHome(Long houseId, Long userId) {
@@ -73,6 +79,27 @@ public class HomeService {
 				toMyAssignments(period, todos, userId, users), toReceivedRequests(period, userId),
 				notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(userId).stream()
 						.map(NotificationConverter::toResponse).toList());
+	}
+
+	/** #18 상대 상세 조회. 상대의 남은(TODO) 짐만, 부탁 중인 짐은 requestPending = true. */
+	public MemberDetailResponse getMemberDetail(Long houseId, Long userId, Long targetUserId) {
+		houseMemberValidator.getMember(houseId, userId);
+		User target = userRepository.findById(targetUserId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+		houseMemberValidator.getMember(houseId, targetUserId);
+
+		Period period = periodRepository.findFirstByHouseIdAndStatusNotOrderByRoundDesc(houseId, PeriodStatus.READY)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
+		List<Assignment> todos = assignmentRepository.findAllByPeriodIdOrderByIdAsc(period.getId()).stream()
+				.filter(a -> a.getStatus() == AssignmentStatus.TODO && a.getAssignee().getId().equals(targetUserId))
+				.toList();
+		Set<Long> pendingAssignmentIds = todos.isEmpty() ? Set.of()
+				: transferRepository
+						.findAllByAssignmentIdInAndStatus(todos.stream().map(Assignment::getId).toList(),
+								TransferStatus.PENDING)
+						.stream().map(t -> t.getAssignment().getId()).collect(Collectors.toSet());
+		return HomeConverter.toMemberDetail(target, todos.stream()
+				.map(a -> HomeConverter.toMemberAssignment(a, pendingAssignmentIds.contains(a.getId()))).toList());
 	}
 
 	/** 내 TODO 짐. 기간이 ENDED(결산 대기)면 빈 배열. */

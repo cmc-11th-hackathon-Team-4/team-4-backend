@@ -1,6 +1,7 @@
 package com.cmc.hackathon4.domain.house.controller;
 
 import com.cmc.hackathon4.domain.house.dto.HomeResponse;
+import com.cmc.hackathon4.domain.house.dto.MemberDetailResponse;
 import com.cmc.hackathon4.domain.house.service.HomeService;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
@@ -22,6 +23,13 @@ public class HomeController implements HomeApiDocs {
 	@GetMapping("/{houseId}/home")
 	public ApiResponse<HomeResponse> getHome(@PathVariable Long houseId, @CurrentUser User user) {
 		return ApiResponse.ok(homeService.getHome(houseId, user.getId()));
+	}
+
+	@Override
+	@GetMapping("/{houseId}/members/{userId}")
+	public ApiResponse<MemberDetailResponse> getMemberDetail(@PathVariable Long houseId, @PathVariable Long userId,
+			@CurrentUser User user) {
+		return ApiResponse.ok(homeService.getMemberDetail(houseId, user.getId(), userId));
 	}
 
 }

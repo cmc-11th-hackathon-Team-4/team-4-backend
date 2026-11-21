@@ -1,7 +1,10 @@
 package com.cmc.hackathon4.domain.house.converter;
 
+import java.util.List;
+
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.house.dto.HomeResponse;
+import com.cmc.hackathon4.domain.house.dto.MemberDetailResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
@@ -39,6 +42,17 @@ public final class HomeConverter {
 				: new HomeResponse.PendingRequest(pending.getId(), toUser.getId(), toUser.getName());
 		return new HomeResponse.MyAssignment(assignment.getId(), assignment.getChore().getId(),
 				assignment.getChore().getName(), assignment.getStatus(), assignment.isCarriedOver(), pendingRequest);
+	}
+
+	public static MemberDetailResponse toMemberDetail(User user, List<MemberDetailResponse.MemberAssignment> assignments) {
+		return new MemberDetailResponse(user.getId(), user.getName(), user.getCharacterType(), user.getMood(),
+				assignments.size(), assignments);
+	}
+
+	public static MemberDetailResponse.MemberAssignment toMemberAssignment(Assignment assignment,
+			boolean requestPending) {
+		return new MemberDetailResponse.MemberAssignment(assignment.getId(), assignment.getChore().getId(),
+				assignment.getChore().getName(), assignment.getStatus(), assignment.isCarriedOver(), requestPending);
 	}
 
 	public static HomeResponse.ReceivedRequest toReceivedRequest(Transfer transfer) {
