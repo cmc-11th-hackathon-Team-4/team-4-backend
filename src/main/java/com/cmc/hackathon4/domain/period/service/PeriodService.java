@@ -19,7 +19,7 @@ import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
-import com.cmc.hackathon4.domain.house.repository.HouseRepository;
+import com.cmc.hackathon4.domain.house.service.HouseLocker;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
@@ -56,7 +56,7 @@ public class PeriodService {
 
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
-	private final HouseRepository houseRepository;
+	private final HouseLocker houseLocker;
 	private final PeriodRepository periodRepository;
 	private final NotificationService notificationService;
 	private final TransferRepository transferRepository;
@@ -72,7 +72,7 @@ public class PeriodService {
 			throw new BusinessException(ErrorCode.INVALID_INPUT, "days: 늘릴 일수는 1, 3, 7 중 하나여야 합니다.");
 		}
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
-		lockHouse(houseId);
+		houseLocker.lock(houseId);
 		Period period = getActivePeriod(houseId);
 		period.extend(request.days());
 
@@ -89,7 +89,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodEndResponse end(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
-		lockHouse(houseId);
+		houseLocker.lock(houseId);
 		Period period = getActivePeriod(houseId);
 		endPeriod(period, Instant.now());
 		return PeriodConverter.toEndResponse(period);
@@ -113,7 +113,7 @@ public class PeriodService {
 		if (houseId == null) {
 			return false;
 		}
-		lockHouse(houseId);
+		houseLocker.lock(houseId);
 		Period period = periodRepository.findById(periodId).orElse(null);
 		if (period == null || period.getStatus() != PeriodStatus.ACTIVE || !period.getEndDate().isBefore(today)) {
 			return false;
@@ -166,7 +166,7 @@ public class PeriodService {
 		Long houseId = periodRepository.findHouseIdById(periodId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
 		houseMemberValidator.getMember(houseId, userId);
-		lockHouse(houseId);
+		houseLocker.lock(houseId);
 		Period period = getPeriod(periodId);
 		if (!period.isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_NOT_ENDED);
@@ -237,7 +237,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public NextPeriodResponse createNext(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
-		lockHouse(houseId);
+		houseLocker.lock(houseId);
 		Period previous = getPreviousEndedPeriod(houseId);
 		LocalDate startDate = LocalDate.now(KST);
 		LocalDate endDate = previous.getHouse().getSettlementCycle().endDateFrom(startDate);
@@ -281,7 +281,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodStartResponse startNext(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
-		lockHouse(houseId);
+		houseLocker.lock(houseId);
 		if (periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.ACTIVE).isPresent()) {
 			throw new BusinessException(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
 		}
@@ -313,11 +313,6 @@ public class PeriodService {
 	private Optional<Period> findReadyNext(Long houseId, Period previous) {
 		return periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
 				.filter(ready -> ready.getRound() > previous.getRound());
-	}
-
-	/** 같은 집에 대한 쓰기(연장·종료·이월·다음 기간)가 겹치지 않도록 집 행을 잠근다. */
-	private void lockHouse(Long houseId) {
-		houseRepository.findByIdForUpdate(houseId).orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
 	}
 
 	private Period getPeriod(Long periodId) {

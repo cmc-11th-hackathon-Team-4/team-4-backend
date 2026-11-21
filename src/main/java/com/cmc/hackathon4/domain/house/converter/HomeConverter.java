@@ -6,7 +6,6 @@ import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.house.dto.HomeResponse;
 import com.cmc.hackathon4.domain.house.dto.MemberDetailResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
-import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
 import com.cmc.hackathon4.domain.user.entity.User;
 
@@ -18,11 +17,6 @@ public final class HomeConverter {
 
 	public static HomeResponse.HouseInfo toHouseInfo(House house) {
 		return new HomeResponse.HouseInfo(house.getId(), house.getName());
-	}
-
-	public static HomeResponse.PeriodInfo toPeriodInfo(Period period) {
-		return new HomeResponse.PeriodInfo(period.getId(), period.getRound(), period.getStartDate(),
-				period.getEndDate(), period.getStatus());
 	}
 
 	public static HomeResponse.MeInfo toMeInfo(User user, int assignmentCount, int receivedHeartCount) {

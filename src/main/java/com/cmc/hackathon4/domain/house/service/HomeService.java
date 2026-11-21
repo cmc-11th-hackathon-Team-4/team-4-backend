@@ -17,6 +17,7 @@ import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.notification.converter.NotificationConverter;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
+import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
@@ -74,7 +75,7 @@ public class HomeService {
 				(int) transferRepository.countByToUserIdAndStatusAndHeartedAtIsNotNull(userId, TransferStatus.ACCEPTED));
 
 		return new HomeResponse(HomeConverter.toHouseInfo(house),
-				period == null ? null : HomeConverter.toPeriodInfo(period), me, members,
+				period == null ? null : PeriodConverter.toPeriodResponse(period), me, members,
 				toMyAssignments(period, todos, userId, users), toReceivedRequests(period, userId),
 				notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(userId).stream()
 						.map(NotificationConverter::toResponse).toList());
