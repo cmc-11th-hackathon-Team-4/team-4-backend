@@ -46,7 +46,7 @@ public interface PeriodApiDocs {
 	ApiResponse<CarryOverResponse> saveCarryOvers(User user,
 			@Parameter(description = "종료된 기간 ID", example = "1") Long periodId, CarryOverRequest request);
 
-	@Operation(summary = "다음 주기 배분 만들기·다시 나누기", description = "방장이 직전(ENDED) 기간 다음 회차를 READY 로 만들고 배분을 저장한다. 이미 있으면 배분만 새로 만든다. 못 한 일 중 KEEP(미선택 포함)은 원래 담당자에게 고정(carriedOver)되고 나머지만 총 개수가 균등하도록 랜덤 배분된다.")
+	@Operation(summary = "다음 주기 배분 만들기·다시 나누기", description = "방장이 직전(ENDED) 기간 다음 회차를 READY 로 만들고 배분을 저장한다. 이미 있으면 배분만 새로 만든다. 기간 날짜는 직전 종료일과 관계없이 오늘(KST)부터 한 주기다. 못 한 일 중 KEEP(미선택 포함)은 원래 담당자에게 고정(carriedOver)되고 나머지만 총 개수가 균등하도록 랜덤 배분된다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.PERIOD_NEXT_ALREADY_STARTED })
 	@ApiErrorCase(code = ErrorCode.PERIOD_NOT_ENDED, when = "직전 기간이 종료되지 않음")
@@ -58,7 +58,7 @@ public interface PeriodApiDocs {
 	@ApiErrorCase(code = ErrorCode.PERIOD_NOT_ENDED, when = "직전 기간이 종료되지 않음")
 	ApiResponse<NextPeriodResponse> getNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
-	@Operation(summary = "다음 주기 시작하기", description = "방장이 저장해 둔 다음 기간(READY)을 ACTIVE 로 시작한다. 방장 제외 전원에게 PERIOD_STARTED 알림이 간다.")
+	@Operation(summary = "다음 주기 시작하기", description = "방장이 저장해 둔 다음 기간(READY)을 ACTIVE 로 시작한다. 기간 날짜는 시작하는 날(KST)부터 한 주기로 다시 잡힌다. 방장 제외 전원에게 PERIOD_STARTED 알림이 간다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시작 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.PERIOD_NEXT_NOT_READY, ErrorCode.PERIOD_NEXT_ALREADY_STARTED })
 	ApiResponse<PeriodStartResponse> startNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
