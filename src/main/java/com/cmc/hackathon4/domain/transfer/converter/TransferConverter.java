@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.transfer.converter;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.transfer.dto.TransferAcceptResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferHeartResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
@@ -21,6 +22,10 @@ public final class TransferConverter {
 		return new TransferAcceptResponse(transfer.getId(), transfer.getStatus(),
 				new TransferAcceptResponse.AssignmentSummary(assignment.getId(), assignment.getChore().getId(),
 						assignment.getChore().getName(), assignment.getStatus(), assignment.isCarriedOver()));
+	}
+
+	public static TransferHeartResponse toHeartResponse(Transfer transfer) {
+		return new TransferHeartResponse(transfer.getId(), transfer.getHeartedAt());
 	}
 
 	public static TransferRelieveResponse toRelieveResponse(Transfer transfer) {

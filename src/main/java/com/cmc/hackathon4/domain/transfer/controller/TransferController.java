@@ -1,6 +1,7 @@
 package com.cmc.hackathon4.domain.transfer.controller;
 
 import com.cmc.hackathon4.domain.transfer.dto.TransferAcceptResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferHeartResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.transfer.service.TransferService;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -37,6 +38,12 @@ public class TransferController implements TransferApiDocs {
 	public ApiResponse<Void> cancel(@CurrentUser User user, @PathVariable Long transferId) {
 		transferService.cancel(user.getId(), transferId);
 		return ApiResponse.ok();
+	}
+
+	@Override
+	@PostMapping("/{transferId}/heart")
+	public ApiResponse<TransferHeartResponse> heart(@CurrentUser User user, @PathVariable Long transferId) {
+		return ApiResponse.ok(transferService.heart(user.getId(), transferId));
 	}
 
 }

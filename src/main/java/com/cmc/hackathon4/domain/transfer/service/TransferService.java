@@ -7,9 +7,11 @@ import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
+import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.transfer.converter.TransferConverter;
 import com.cmc.hackathon4.domain.transfer.dto.TransferAcceptResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferHeartResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
 import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
@@ -36,6 +38,7 @@ public class TransferService {
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
 	private final NotificationService notificationService;
+	private final NotificationRepository notificationRepository;
 
 	/** 덜어가기(#20). 같은 집 구성원이면 누구나 상대의 TODO 짐을 즉시 내 것으로 만든다. */
 	@Transactional
@@ -154,6 +157,27 @@ public class TransferService {
 		}
 		transfer.cancel(now);
 		assignment.changeAssignee(transfer.getFromUser());
+	}
+
+	/** 하트로 고마움 전하기(#25). RELIEVE 이동에만, 원래 담당자(fromUser)만, 한 번만 보낼 수 있다. */
+	@Transactional
+	public TransferHeartResponse heart(Long userId, Long transferId) {
+		User me = getUser(userId);
+		Transfer transfer = getTransfer(transferId);
+		if (!transfer.getFromUser().getId().equals(userId)) {
+			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+		}
+		if (transfer.getType() != TransferType.RELIEVE || transfer.getStatus() != TransferStatus.ACCEPTED
+				|| transfer.isHearted()) {
+			throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
+		}
+		Instant now = Instant.now();
+		transfer.heart(now);
+		notificationService.send(transfer.getToUser(), me, transfer, NotificationType.HEART_RECEIVED,
+				me.getName() + "가 하트를 보냈어요");
+		notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(userId, transferId,
+				NotificationType.CHORE_RELIEVED).forEach(notification -> notification.markRead(now));
+		return TransferConverter.toHeartResponse(transfer);
 	}
 
 	/** 내가 받은 PENDING 부탁을 찾는다. 없으면 404, 받는 사람이 아니면 403, PENDING 이 아니면 409. */
