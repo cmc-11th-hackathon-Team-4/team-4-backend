@@ -156,6 +156,18 @@ class ChoreServiceTest {
 				.isEqualTo(ErrorCode.CHORE_DUPLICATED);
 	}
 
+	@Test
+	void 앞뒤_공백만_다른_이름도_중복으로_본다() {
+		ChoreCreateResponse created = choreService.createChore(house.getId(), owner.getId(),
+				new ChoreCreateRequest(" 설거지 "));
+
+		assertThat(created.chore().name()).isEqualTo("설거지");
+		expectError(() -> choreService.createChore(house.getId(), member.getId(), new ChoreCreateRequest("설거지 ")),
+				ErrorCode.CHORE_DUPLICATED);
+		expectError(() -> choreService.replaceChores(house.getId(), owner.getId(),
+				new ChoreBulkSaveRequest(List.of("분리수거", "분리수거 "))), ErrorCode.INVALID_INPUT);
+	}
+
 	// ---- 집안일 삭제 / 한도 ----
 
 	private Period startHouse() {
