@@ -16,6 +16,7 @@ import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
 import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
+import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
@@ -168,13 +169,45 @@ class HouseConcurrencyRegression1Test {
 		}
 	}
 
-	/** 두 작업을 같은 순간에 시작시키고 성공한 개수를 돌려준다. BusinessException 은 정상적인 거절로 센다. */
-	private int runTogether(Callable<?> first, Callable<?> second) throws Exception {
-		ExecutorService pool = Executors.newFixedThreadPool(2);
-		CyclicBarrier barrier = new CyclicBarrier(2);
+	// Regression: 같은 사용자의 집 만들기·참여가 동시에 들어오면 하나가 unique 제약에 걸려 문서에 없는 COMMON-409 로 나가던 문제
+	@Test
+	void 같은_사용자가_집을_동시에_만들어도_하나만_성공하고_나머지는_HOUSE_409_로_거절된다() throws Exception {
+		for (int round = 0; round < ROUNDS; round++) {
+			User user = newUser();
+			Callable<?> create = () -> houseService.create(user.getId(), new HouseCreateRequest("동시 집"));
+
+			int succeeded = runTogether(create, create, create, create);
+
+			assertThat(succeeded).isEqualTo(1);
+			assertThat(houseMemberRepository.findByUserId(user.getId())).isPresent();
+		}
+	}
+
+	@Test
+	void 같은_사용자가_두_집에_동시에_참여해도_하나만_성공하고_나머지는_HOUSE_409_로_거절된다() throws Exception {
+		for (int round = 0; round < ROUNDS; round++) {
+			Fixture first = waitingHouse(1);
+			Fixture second = waitingHouse(1);
+			User user = newUser();
+
+			int succeeded = runTogether(
+					() -> houseService.join(user.getId(), new HouseJoinRequest(first.house.getInviteCode())),
+					() -> houseService.join(user.getId(), new HouseJoinRequest(second.house.getInviteCode())));
+
+			assertThat(succeeded).isEqualTo(1);
+		}
+	}
+
+	/**
+	 * 작업들을 같은 순간에 시작시키고 성공한 개수를 돌려준다. BusinessException 은 정상적인 거절로 센다. BusinessException 이 아닌
+	 * 예외(예: DataIntegrityViolationException)가 나오면 테스트가 실패한다.
+	 */
+	private int runTogether(Callable<?>... tasks) throws Exception {
+		ExecutorService pool = Executors.newFixedThreadPool(tasks.length);
+		CyclicBarrier barrier = new CyclicBarrier(tasks.length);
 		try {
 			List<Future<Boolean>> futures = new ArrayList<>();
-			for (Callable<?> task : List.of(first, second)) {
+			for (Callable<?> task : tasks) {
 				futures.add(pool.submit(() -> {
 					barrier.await(5, TimeUnit.SECONDS);
 					try {

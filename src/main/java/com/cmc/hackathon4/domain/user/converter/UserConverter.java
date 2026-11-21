@@ -14,8 +14,9 @@ public final class UserConverter {
 	private UserConverter() {
 	}
 
-	public static User toEntity(UserCreateRequest request) {
-		return new User(request.deviceId(), request.name(), request.characterType());
+	/** @param name 서비스에서 앞뒤 공백을 빼고 검사한 이름 */
+	public static User toEntity(UserCreateRequest request, String name) {
+		return new User(request.deviceId(), name, request.characterType());
 	}
 
 	public static UserResponse toResponse(User user) {

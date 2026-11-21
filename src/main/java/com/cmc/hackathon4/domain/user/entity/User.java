@@ -24,6 +24,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseTimeEntity {
 
+	/** 이름 최대 길이(글자 수). 이모지도 한 글자로 센다. */
+	public static final int NAME_MAX_LENGTH = 10;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -31,7 +34,8 @@ public class User extends BaseTimeEntity {
 	@Column(name = "device_id", nullable = false, length = 64)
 	private String deviceIdHash;
 
-	@Column(nullable = false, length = 10)
+	// MySQL(utf8mb4)은 글자(코드 포인트) 단위로 세지만 H2 등은 UTF-16 단위로 세서 이모지 10자를 담으려면 20 이 필요하다. 글자 수 제한은 서비스에서 한다.
+	@Column(nullable = false, length = 20)
 	private String name;
 
 	@Enumerated(EnumType.STRING)
