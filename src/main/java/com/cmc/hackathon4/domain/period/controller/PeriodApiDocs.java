@@ -6,6 +6,7 @@ import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
+import com.cmc.hackathon4.domain.period.dto.PeriodStartResponse;
 import com.cmc.hackathon4.domain.period.dto.SettlementResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.response.ApiResponse;
@@ -60,5 +61,12 @@ public interface PeriodApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "직전 기간이 종료되지 않음 (PERIOD-409-1) / 이미 다음 기간이 시작됨 (PERIOD-409-2)")
 	ApiResponse<NextPeriodResponse> getNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
+
+	@Operation(summary = "다음 주기 시작하기", description = "방장이 저장해 둔 다음 기간(READY)을 ACTIVE 로 시작한다. 방장 제외 전원에게 PERIOD_STARTED 알림이 간다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시작 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404) / 준비된 다음 기간 없음 (PERIOD-404-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 다음 기간이 시작됨 (PERIOD-409-2)")
+	ApiResponse<PeriodStartResponse> startNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
 }

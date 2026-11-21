@@ -6,6 +6,7 @@ import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
+import com.cmc.hackathon4.domain.period.dto.PeriodStartResponse;
 import com.cmc.hackathon4.domain.period.dto.SettlementResponse;
 import com.cmc.hackathon4.domain.period.service.PeriodService;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -65,6 +66,12 @@ public class PeriodController implements PeriodApiDocs {
 	@GetMapping("/houses/{houseId}/periods/next")
 	public ApiResponse<NextPeriodResponse> getNext(@CurrentUser User user, @PathVariable Long houseId) {
 		return ApiResponse.ok(periodService.getNext(houseId, user.getId()));
+	}
+
+	@Override
+	@PostMapping("/houses/{houseId}/periods/next/start")
+	public ApiResponse<PeriodStartResponse> startNext(@CurrentUser User user, @PathVariable Long houseId) {
+		return ApiResponse.ok(periodService.startNext(houseId, user.getId()));
 	}
 
 }

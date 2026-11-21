@@ -28,6 +28,7 @@ import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
+import com.cmc.hackathon4.domain.period.dto.PeriodStartResponse;
 import com.cmc.hackathon4.domain.period.dto.SettlementResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
@@ -202,6 +203,24 @@ public class PeriodService {
 			List<Assignment> assignments = assignmentRepository.findAllByPeriodIdOrderByIdAsc(next.getId());
 			return PeriodConverter.toNextPeriodResponse(next, members, assignments, userId);
 		}).orElseGet(NextPeriodResponse::notPrepared);
+	}
+
+	/** 저장된 다음 기간(READY)을 ACTIVE 로 시작하고 방장 제외 전원에게 PERIOD_STARTED 알림을 보낸다. */
+	@Transactional
+	public PeriodStartResponse startNext(Long houseId, Long userId) {
+		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
+		if (periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.ACTIVE).isPresent()) {
+			throw new BusinessException(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
+		}
+		Period previous = periodRepository.findFirstByHouseIdAndStatusOrderByRoundDesc(houseId, PeriodStatus.ENDED)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NEXT_NOT_READY));
+		Period next = findReadyNext(houseId, previous)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NEXT_NOT_READY));
+		next.start();
+
+		notificationService.sendAll(membersExcept(houseId, userId), owner.getUser(), null,
+				NotificationType.PERIOD_STARTED, "새 집안일이 배분됐어요");
+		return PeriodConverter.toPeriodStartResponse(next);
 	}
 
 	/**
