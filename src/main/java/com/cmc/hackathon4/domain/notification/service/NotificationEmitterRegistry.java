@@ -56,7 +56,11 @@ public class NotificationEmitterRegistry {
 	/** 이미 만든 emitter 를 등록한다(테스트에서 가짜 emitter 를 넣을 때도 쓴다). */
 	public SseEmitter register(Long userId, SseEmitter emitter) {
 		emitter.onCompletion(() -> emitters.remove(userId, emitter));
-		emitter.onTimeout(() -> emitters.remove(userId, emitter));
+		// 타임아웃 때 직접 닫는다. 닫지 않으면 스프링이 이미 열린 SSE 응답에 에러 본문을 쓰려다 실패 로그를 남긴다.
+		emitter.onTimeout(() -> {
+			emitters.remove(userId, emitter);
+			completeQuietly(emitter);
+		});
 		emitter.onError(e -> emitters.remove(userId, emitter));
 		SseEmitter previous = emitters.put(userId, emitter);
 		if (previous != null && previous != emitter) {
