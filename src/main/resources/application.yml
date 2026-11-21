@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: backend
+  profiles:
+    active: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+app:
+  cors:
+    # 해커톤 편의상 전체 허용. 필요하면 프론트 주소만 남긴다 (쉼표로 구분)
+    allowed-origin-patterns: "*"
