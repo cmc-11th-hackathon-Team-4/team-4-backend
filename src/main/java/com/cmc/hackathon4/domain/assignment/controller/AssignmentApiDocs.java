@@ -2,6 +2,8 @@ package com.cmc.hackathon4.domain.assignment.controller;
 
 import com.cmc.hackathon4.domain.assignment.dto.AssignmentCompleteResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
+import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,5 +29,15 @@ public interface AssignmentApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 완료된 짐 (ASSIGNMENT-409) / 부탁 중인 짐 (ASSIGNMENT-409-1) / 종료된 기간 (PERIOD-409)")
 	ApiResponse<TransferRelieveResponse> relieve(User user,
 			@Parameter(description = "덜어갈 짐 ID", example = "5") Long assignmentId);
+
+	@Operation(summary = "짐 올리기 부탁", description = "내 TODO 짐을 같은 집의 다른 구성원에게 부탁한다. PENDING transfer 가 만들어지고 받는 사람의 홈 receivedRequests 에 나타난다. 짐당 PENDING 은 하나만 가능하다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "부탁 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "toUserId 가 없거나 본인이거나 같은 집 구성원이 아님 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "내 짐이 아님 (ASSIGNMENT-403)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "짐 없음 (ASSIGNMENT-404) / 등록되지 않은 기기 (USER-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 완료된 짐 (ASSIGNMENT-409) / 이미 부탁 중 (ASSIGNMENT-409-1) / 종료된 기간 (PERIOD-409)")
+	ApiResponse<TransferStatusResponse> request(User user,
+			@Parameter(description = "부탁할 내 짐 ID", example = "3") Long assignmentId,
+			TransferRequestCreateRequest request);
 
 }

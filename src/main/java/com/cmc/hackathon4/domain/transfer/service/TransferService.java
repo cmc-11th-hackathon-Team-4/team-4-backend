@@ -4,11 +4,14 @@ import java.time.Instant;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
+import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.transfer.converter.TransferConverter;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
+import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
 import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
 import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
@@ -29,6 +32,7 @@ public class TransferService {
 	private final AssignmentRepository assignmentRepository;
 	private final UserRepository userRepository;
 	private final HouseMemberValidator houseMemberValidator;
+	private final HouseMemberRepository houseMemberRepository;
 	private final NotificationService notificationService;
 
 	/** 덜어가기(#20). 같은 집 구성원이면 누구나 상대의 TODO 짐을 즉시 내 것으로 만든다. */
@@ -57,6 +61,33 @@ public class TransferService {
 		notificationService.send(original, me, transfer, NotificationType.CHORE_RELIEVED,
 				me.getName() + "가 " + assignment.getChore().getName() + "를 덜어갔어요");
 		return TransferConverter.toRelieveResponse(transfer);
+	}
+
+	/** 짐 올리기 부탁(#21). 담당자 본인이 내 TODO 짐을 같은 집의 다른 구성원에게 부탁한다. 알림은 만들지 않는다. */
+	@Transactional
+	public TransferStatusResponse request(Long userId, Long assignmentId, TransferRequestCreateRequest request) {
+		User me = getUser(userId);
+		Assignment assignment = getAssignment(assignmentId);
+		if (!assignment.getAssignee().getId().equals(userId)) {
+			throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_MINE);
+		}
+		if (assignment.isDone()) {
+			throw new BusinessException(ErrorCode.ASSIGNMENT_ALREADY_DONE);
+		}
+		if (assignment.getPeriod().isEnded()) {
+			throw new BusinessException(ErrorCode.PERIOD_ENDED);
+		}
+		if (transferRepository.existsByAssignmentIdAndStatus(assignmentId, TransferStatus.PENDING)) {
+			throw new BusinessException(ErrorCode.ASSIGNMENT_REQUEST_PENDING);
+		}
+		Long toUserId = request.toUserId();
+		if (toUserId.equals(userId) || houseMemberRepository
+				.findByHouseIdAndUserId(assignment.getPeriod().getHouse().getId(), toUserId).isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		}
+		User toUser = getUser(toUserId);
+		Transfer transfer = transferRepository.save(Transfer.request(assignment, me, toUser));
+		return TransferConverter.toStatusResponse(transfer);
 	}
 
 	private User getUser(Long userId) {

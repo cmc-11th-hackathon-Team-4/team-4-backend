@@ -3,13 +3,17 @@ package com.cmc.hackathon4.domain.assignment.controller;
 import com.cmc.hackathon4.domain.assignment.dto.AssignmentCompleteResponse;
 import com.cmc.hackathon4.domain.assignment.service.AssignmentService;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
+import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
+import com.cmc.hackathon4.domain.transfer.dto.TransferStatusResponse;
 import com.cmc.hackathon4.domain.transfer.service.TransferService;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,6 +36,13 @@ public class AssignmentController implements AssignmentApiDocs {
 	@PostMapping("/{assignmentId}/relieve")
 	public ApiResponse<TransferRelieveResponse> relieve(@CurrentUser User user, @PathVariable Long assignmentId) {
 		return ApiResponse.ok(transferService.relieve(user.getId(), assignmentId));
+	}
+
+	@Override
+	@PostMapping("/{assignmentId}/requests")
+	public ApiResponse<TransferStatusResponse> request(@CurrentUser User user, @PathVariable Long assignmentId,
+			@Valid @RequestBody TransferRequestCreateRequest request) {
+		return ApiResponse.ok(transferService.request(user.getId(), assignmentId, request));
 	}
 
 }
