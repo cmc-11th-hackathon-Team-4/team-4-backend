@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.period.service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PeriodService {
+
+	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
@@ -220,21 +223,35 @@ public class PeriodService {
 
 	/**
 	 * 직전 기간(ENDED)을 기준으로 다음 회차 기간(READY)을 만들고, 이미 있으면 배분만 새로 만든다. 이월(KEEP)된 짐은 그대로 두고 나머지만 다시 섞인다.
+	 * 날짜는 직전 종료일이 아니라 오늘(KST)부터 한 주기로 잡는다. 일찍 종료했거나 늦게 넘어가도 기간이 미래나 과거에서 시작하지 않게 하기 위해서다.
 	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public NextPeriodResponse createNext(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
 		lockHouse(houseId);
 		Period previous = getPreviousEndedPeriod(houseId);
-		Period next = findReadyNext(houseId, previous).orElseGet(() -> {
-			LocalDate startDate = previous.getEndDate().plusDays(1);
-			LocalDate endDate = previous.getHouse().getSettlementCycle().endDateFrom(startDate);
-			return periodRepository.save(new Period(previous.getHouse(), previous.getRound() + 1, startDate, endDate));
-		});
+		LocalDate startDate = LocalDate.now(KST);
+		LocalDate endDate = previous.getHouse().getSettlementCycle().endDateFrom(startDate);
+		Period next = findReadyNext(houseId, previous).map(ready -> {
+			ready.reschedule(startDate, endDate);
+			return ready;
+		}).orElseGet(() -> periodRepository
+				.save(new Period(previous.getHouse(), previous.getRound() + 1, startDate, endDate)));
 
 		List<Assignment> assignments = createNextAssignments(houseId, next.getId(), previous.getId());
 		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
 		return PeriodConverter.toNextPeriodResponse(getPeriod(next.getId()), members, assignments, userId);
+	}
+
+	/**
+	 * 준비해 둔 다음 기간(READY)이 있으면 그 배분을 지금의 집안일 목록으로 다시 만든다. 없으면 아무것도 하지 않는다. 기간 사이에 집안일이 추가됐을 때 쓴다.
+	 * 영속성 컨텍스트가 비워지므로 부른 쪽은 이 뒤에 엔티티를 다시 조회해서 쓴다.
+	 */
+	@Transactional
+	public void refreshNextDistribution(Long houseId) {
+		periodRepository.findFirstByHouseIdAndStatusOrderByRoundDesc(houseId, PeriodStatus.ENDED)
+				.ifPresent(previous -> findReadyNext(houseId, previous)
+						.ifPresent(next -> createNextAssignments(houseId, next.getId(), previous.getId())));
 	}
 
 	/** 서버에 저장된 다음 기간 배분을 구성원 누구나 조회한다. 아직 없으면 에러 대신 prepared=false. */
@@ -248,7 +265,10 @@ public class PeriodService {
 		}).orElseGet(NextPeriodResponse::notPrepared);
 	}
 
-	/** 저장된 다음 기간(READY)을 ACTIVE 로 시작하고 방장 제외 전원에게 PERIOD_STARTED 알림을 보낸다. */
+	/**
+	 * 저장된 다음 기간(READY)을 ACTIVE 로 시작하고 방장 제외 전원에게 PERIOD_STARTED 알림을 보낸다. 만들어 둔 날과 시작하는 날이 다를 수 있어 날짜를 시작하는
+	 * 날(KST)부터 한 주기로 다시 잡는다.
+	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodStartResponse startNext(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
@@ -260,6 +280,8 @@ public class PeriodService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NEXT_NOT_READY));
 		Period next = findReadyNext(houseId, previous)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NEXT_NOT_READY));
+		LocalDate today = LocalDate.now(KST);
+		next.reschedule(today, previous.getHouse().getSettlementCycle().endDateFrom(today));
 		next.start();
 
 		notificationService.sendAll(membersExcept(houseId, userId), owner.getUser(), null,
