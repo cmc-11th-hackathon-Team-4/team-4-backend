@@ -3,6 +3,8 @@ package com.cmc.hackathon4.domain.user.resolver;
 
 import java.util.List;
 
+import com.cmc.hackathon4.global.exception.ErrorCode;
+import com.cmc.hackathon4.global.swagger.ErrorResponseDocs;
 import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.HeaderParameter;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,9 @@ public class UserWebConfig implements WebMvcConfigurer {
 							.description("앱이 발급해 보관하는 기기 UUID (사용자 식별)")
 							.required(true)
 							.schema(new StringSchema()));
+					// 헤더 없음(COMMON-400), 등록되지 않은 기기(USER-404)는 모든 @CurrentUser API 에서 날 수 있다
+					ErrorResponseDocs.add(operation, ErrorCode.INVALID_INPUT, "X-Device-Id 헤더 없음");
+					ErrorResponseDocs.add(operation, ErrorCode.USER_NOT_FOUND, "등록되지 않은 기기");
 					break;
 				}
 			}

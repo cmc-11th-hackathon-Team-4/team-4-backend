@@ -51,6 +51,7 @@ src/main/java/com/cmc/hackathon4/
     ├── config/                 #   JpaAuditingConfig, SwaggerConfig, WebConfig(CORS)
     ├── entity/                 #   BaseTimeEntity (createdAt / updatedAt)
     ├── exception/              #   BusinessException, ErrorCode, GlobalExceptionHandler
+    ├── swagger/                #   @ApiErrorCodes, @ApiErrorCase, 에러 응답 자동 생성
     └── response/               #   ApiResponse (공통 응답 형식)
 ```
 
@@ -68,6 +69,14 @@ src/main/java/com/cmc/hackathon4/
   - 실패 `{ "success": false, "code": "COMMON-400", "message": "...", "data": null }`
 - 서비스는 실패 시 `BusinessException(ErrorCode.XXX)` 을 던지고, `GlobalExceptionHandler` 가 위 형식으로 바꾼다.
 - `ErrorCode` 코드 형식: `{도메인}-{HTTP 상태}` (예: `TEST-ITEM-404`), 공통은 `COMMON-{상태}`.
+
+### Swagger 에러 문서 자동화 (`global/swagger/`)
+
+- Swagger 첫 화면 설명에 공통 응답 형식, `X-Device-Id`, 시간 형식, **`ErrorCode` 전체 표**가 나온다. 표는 enum 에서 자동 생성된다 (`SwaggerConfig`).
+- 각 API 의 에러 응답은 `XxxApiDocs` 의 `@ApiErrorCodes` / `@ApiErrorCase` 를 `ErrorCodeOperationCustomizer` 가 읽어 만든다.
+  HTTP 상태별로 묶고, 코드마다 실제 응답과 같은 예시(`ErrorResponse` 스키마)를 넣는다.
+- 자동으로 붙는 것: 요청 본문이 있으면 `COMMON-400`, `@CurrentUser` 가 있으면 `COMMON-400`(헤더 없음)·`USER-404`(미등록 기기, `UserWebConfig`).
+- 예시의 `message` 는 `ErrorCode` 기본 메시지다. 서비스가 `BusinessException(code, 메시지)` 로 다른 메시지를 주면 실제 응답의 `message` 는 다를 수 있다. 분기는 `code` 로 한다.
 
 ## 설정 파일 역할
 
