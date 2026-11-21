@@ -1,7 +1,10 @@
-package com.cmc.hackathon4.domain.testitem;
+package com.cmc.hackathon4.domain.testitem.controller;
 
 import java.util.List;
 
+import com.cmc.hackathon4.domain.testitem.dto.TestItemCreateRequest;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemResponse;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemUpdateRequest;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

@@ -1,7 +1,12 @@
-package com.cmc.hackathon4.domain.testitem;
+package com.cmc.hackathon4.domain.testitem.service;
 
 import java.util.List;
 
+import com.cmc.hackathon4.domain.testitem.dto.TestItemCreateRequest;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemResponse;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemUpdateRequest;
+import com.cmc.hackathon4.domain.testitem.entity.TestItem;
+import com.cmc.hackathon4.domain.testitem.repository.TestItemRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

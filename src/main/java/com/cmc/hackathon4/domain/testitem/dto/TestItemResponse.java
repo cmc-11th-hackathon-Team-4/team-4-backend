@@ -1,6 +1,8 @@
-package com.cmc.hackathon4.domain.testitem;
+package com.cmc.hackathon4.domain.testitem.dto;
 
 import java.time.Instant;
+
+import com.cmc.hackathon4.domain.testitem.entity.TestItem;
 
 public record TestItemResponse(Long id, String title, String content, Instant createdAt, Instant updatedAt) {
 

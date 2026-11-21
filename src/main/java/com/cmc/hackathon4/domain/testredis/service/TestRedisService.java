@@ -1,7 +1,9 @@
-package com.cmc.hackathon4.domain.testredis;
+package com.cmc.hackathon4.domain.testredis.service;
 
 import java.time.Duration;
 
+import com.cmc.hackathon4.domain.testredis.dto.TestRedisResponse;
+import com.cmc.hackathon4.domain.testredis.dto.TestRedisSaveRequest;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;

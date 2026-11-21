@@ -24,29 +24,29 @@
 | 리버스 프록시 | 없음 | Caddy |
 | 테스트 | H2 인메모리 | - |
 
-## 디렉터리 구조: 도메인 단위로 나눈다
+## 디렉터리 구조: 도메인 먼저, 그 안에서 계층별로 나눈다
 
-**기능은 반드시 도메인 패키지 하나에 모은다.** 계층(controller/service/repository)별로 최상위 패키지를 나누지 않는다.
+**기능은 도메인 패키지 아래에 모으고, 도메인 안을 계층 하위 패키지로 나눈다** ([ADR 0007](adr/0007-domain-then-layer-packages.md)).
+최상위를 계층(controller/service/repository)별로 나누지 않는다.
 
 ```
 src/main/java/com/cmc/hackathon4/
 ├── BackendApplication.java
-├── domain/                     # 기능(도메인)별 패키지. 한 도메인의 클래스는 전부 이 안에
-│   ├── health/                 #   예시 도메인 (가장 단순한 형태)
-│   │   ├── HealthController.java
-│   │   ├── HealthApiDocs.java
-│   │   └── HealthResponse.java
-│   ├── testitem/               #   [TEST] 임시 도메인 (DB CRUD 예시)
-│   │   ├── TestItem.java                 # Entity
-│   │   ├── TestItemRepository.java
-│   │   ├── TestItemService.java
-│   │   ├── TestItemController.java
-│   │   ├── TestItemApiDocs.java          # Swagger 어노테이션은 여기에만
-│   │   ├── TestItemCreateRequest.java    # DTO (record)
-│   │   ├── TestItemUpdateRequest.java
-│   │   └── TestItemResponse.java
-│   └── testredis/              #   [TEST] 임시 도메인 (Redis 예시)
-└── global/                     # 여러 도메인이 함께 쓰는 것만
+├── domain/                         # 기능(도메인)별 패키지
+│   ├── health/                     #   가장 단순한 형태 (DB 없음)
+│   │   ├── controller/   HealthController, HealthApiDocs
+│   │   └── dto/          HealthResponse
+│   ├── testitem/                   #   [TEST] 임시 도메인. 계층 5개를 모두 갖춘 기준 예시
+│   │   ├── controller/   TestItemController, TestItemApiDocs (Swagger 어노테이션은 ApiDocs 에만)
+│   │   ├── service/      TestItemService
+│   │   ├── repository/   TestItemRepository
+│   │   ├── entity/       TestItem
+│   │   └── dto/          TestItemCreateRequest, TestItemUpdateRequest, TestItemResponse (record)
+│   └── testredis/                  #   [TEST] 임시 도메인 (Redis 예시)
+│       ├── controller/   TestRedisController, TestRedisApiDocs
+│       ├── service/      TestRedisService
+│       └── dto/          TestRedisSaveRequest, TestRedisResponse
+└── global/                         # 여러 도메인이 함께 쓰는 것만
     ├── config/                 #   JpaAuditingConfig, SwaggerConfig, WebConfig(CORS)
     ├── entity/                 #   BaseTimeEntity (createdAt / updatedAt)
     ├── exception/              #   BusinessException, ErrorCode, GlobalExceptionHandler
@@ -56,7 +56,7 @@ src/main/java/com/cmc/hackathon4/
 규칙:
 
 - 새 기능 = `domain/{도메인명}/` 새 패키지. 도메인명은 영어 소문자 한 단어(필요하면 붙여 쓰기, 예: `testitem`).
-- 한 도메인의 Controller, ApiDocs, Service, Repository, Entity, Request/Response DTO 는 **모두 같은 패키지**에 둔다. 도메인 안에 하위 패키지(`controller/`, `dto/` 등)를 만들지 않는다.
+- 도메인 안은 `controller/`(Controller, ApiDocs), `service/`, `repository/`, `entity/`(엔티티), `dto/`(Request/Response record) 로 나눈다. 클래스가 없는 하위 패키지는 만들지 않는다.
 - `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다. 한 도메인에서만 쓰는 클래스는 그 도메인 패키지에 둔다.
 - 이름·코드 규칙은 [AGENTS.md](../AGENTS.md) 를 따른다.
 

@@ -1,4 +1,4 @@
-package com.cmc.hackathon4.domain.testitem;
+package com.cmc.hackathon4.domain.testitem.entity;
 
 import com.cmc.hackathon4.global.entity.BaseTimeEntity;
 import jakarta.persistence.Column;

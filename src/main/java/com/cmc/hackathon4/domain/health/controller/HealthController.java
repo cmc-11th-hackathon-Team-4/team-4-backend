@@ -1,7 +1,8 @@
-package com.cmc.hackathon4.domain.health;
+package com.cmc.hackathon4.domain.health.controller;
 
 import java.time.Instant;
 
+import com.cmc.hackathon4.domain.health.dto.HealthResponse;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

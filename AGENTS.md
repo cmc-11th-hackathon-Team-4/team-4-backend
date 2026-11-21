@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/health`, `domain/testitem`, `global/`).
+Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/testitem` 이 계층 5개를 모두 갖춘 형태, `global/`).
 구성·흐름은 `docs/architecture.md`, 로컬 실행은 `docs/local-dev.md`, 배포는 `docs/deploy.md`, 결정 이유는 `docs/adr/`.
 
 ## 필수
@@ -15,14 +15,28 @@ Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 
   | `docker-compose.yml` | 팀 전원의 로컬 환경 |
   | `global/` 공통 클래스 (`ErrorCode` 추가는 허용) | 모든 도메인에 영향 |
 
-## 디렉터리 구조: 도메인 단위로 분리
-- **기능은 `domain/{도메인}/` 패키지 하나에 모은다.** 그 도메인의 Controller, ApiDocs, Service, Repository, Entity, DTO 를 모두 같은 패키지에 둔다.
-- 계층별 최상위 패키지(`controller/`, `service/`, `repository/`)나 도메인 안의 하위 패키지(`dto/` 등)를 만들지 않는다.
+## 디렉터리 구조: 도메인 먼저, 그 안에서 계층별로 분리
+- **기능은 `domain/{도메인}/` 아래에 모은다.** 최상위를 계층별(`controller/`, `service/` …)로 나누지 않는다.
+- 도메인 안은 아래 계층 하위 패키지로 나눈다. 해당 클래스가 없는 하위 패키지는 만들지 않는다.
+
+  | 하위 패키지 | 들어가는 것 |
+  | --- | --- |
+  | `controller/` | `XxxController`, `XxxApiDocs` |
+  | `service/` | `XxxService` |
+  | `repository/` | `XxxRepository` |
+  | `entity/` | 엔티티 |
+  | `dto/` | `XxxCreateRequest`, `XxxUpdateRequest`, `XxxResponse` 등 record |
+
 - 도메인명은 영어 소문자 (예: `user`, `testitem`). `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다.
 
 ```
 com/cmc/hackathon4/
-├── domain/{도메인}/   XxxController, XxxApiDocs, XxxService, XxxRepository, Xxx(Entity), XxxCreateRequest, XxxUpdateRequest, XxxResponse
+├── domain/{도메인}/
+│   ├── controller/   XxxController, XxxApiDocs
+│   ├── service/      XxxService
+│   ├── repository/   XxxRepository
+│   ├── entity/       Xxx
+│   └── dto/          XxxCreateRequest, XxxUpdateRequest, XxxResponse
 └── global/           config/, entity/, exception/, response/
 ```
 
@@ -49,7 +63,7 @@ com/cmc/hackathon4/
 ## 변경 시 함께 수정할 곳
 | 변경 | 함께 수정 |
 | --- | --- |
-| 새 도메인 | `domain/{도메인}/` 클래스들, 필요하면 `ErrorCode` (`{도메인}-{상태}` 형식) |
+| 새 도메인 | `domain/{도메인}/{controller,service,repository,entity,dto}/` 클래스들, 필요하면 `ErrorCode` (`{도메인}-{상태}` 형식) |
 | 운영 환경변수 추가 | `application-prod.yml` + GitHub Secret `APP_ENV` + `docs/deploy.md` 의 APP_ENV 예시 |
 | 로컬 환경변수 추가 | `application-local.yml` + `.env.example` + `docs/local-dev.md` |
 | 인프라 구성요소 추가 (예: Redis) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
