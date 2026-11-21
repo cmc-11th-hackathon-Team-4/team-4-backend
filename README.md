@@ -42,4 +42,4 @@ cp .env.example .env          # 선택: 없으면 기본값으로 동작
 | [docs/deploy.md](docs/deploy.md) | 운영 배포·서버 세팅·HTTPS·디버깅 런북 |
 | [docs/adr/](docs/adr/README.md) | 설계 결정 기록 (왜 그렇게 했는지) |
 
-문서와 코드가 어긋나지 않았는지는 `bash scripts/check-docs.sh` 로 확인한다.
+문서와 코드가 어긋나지 않았는지는 `bash scripts/check-docs.sh` 로 확인한다. PR 을 올리면 같은 검사가 자동으로 돈다 (`.github/workflows/pr-check.yml`).

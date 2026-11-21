@@ -82,6 +82,7 @@ src/main/java/com/cmc/hackathon4/
 | `scripts/ec2-setup.sh` | 운영 서버 | Java, Redis, Caddy, systemd, 배포 스크립트 설치 |
 | `.github/workflows/deploy.yml` | CI | `main` push 시 배포 |
 | `.github/workflows/setup-https.yml` | CI (수동) | 서버에 `ec2-setup.sh <도메인>` 적용 |
+| `.github/workflows/pr-check.yml` | CI (PR) | `main` 대상 PR 마다 `scripts/check-docs.sh` 실행 (배포·AWS 권한 없음) |
 
 ## 설계 결정
 
