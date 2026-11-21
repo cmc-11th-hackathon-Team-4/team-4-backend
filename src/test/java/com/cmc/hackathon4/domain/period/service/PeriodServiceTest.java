@@ -485,6 +485,68 @@ class PeriodServiceTest {
 				.isEqualTo(ErrorCode.CHORE_LIMIT_EXCEEDED);
 	}
 
+	// Regression: 같은 짐을 두 번 보내면 마지막 선택으로 덮어쓰던 문제
+	@Test
+	void 같은_짐을_두_번_보내면_이월_선택을_저장하지_않는다() {
+		Long periodId = startFirstPeriod();
+		Assignment mine = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId).stream()
+				.filter(a -> a.getAssignee().getId().equals(ownerId)).findFirst().orElseThrow();
+		periodService.end(houseId, ownerId);
+		CarryOverRequest request = new CarryOverRequest(List.of(new CarryOverRequest.Choice(mine.getId(), CarryChoice.KEEP),
+				new CarryOverRequest.Choice(mine.getId(), CarryChoice.RELEASE)));
+
+		assertThatThrownBy(() -> periodService.saveCarryOvers(periodId, ownerId, request))
+				.isInstanceOfSatisfying(BusinessException.class, e -> {
+					assertThat(e.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).startsWith("choices:");
+				});
+		assertThat(mine.getCarryChoice()).isNull();
+	}
+
+	// Regression: 결산의 내 못 한 일에서 빠지는 임시 집안일의 짐도 이월 선택이 저장되던 문제
+	@Test
+	void 기간_중에_추가한_임시_집안일의_짐은_이월_선택할_수_없다() {
+		Long periodId = startFirstPeriod();
+		Long addedChoreId = choreService.createChore(houseId, member1Id, new ChoreCreateRequest("임시 집안일")).chore().id();
+		Assignment temporary = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId).stream()
+				.filter(a -> a.getChore().getId().equals(addedChoreId)).findFirst().orElseThrow();
+		Long assigneeId = temporary.getAssignee().getId();
+		periodService.end(houseId, ownerId);
+
+		CarryOverRequest request = new CarryOverRequest(
+				List.of(new CarryOverRequest.Choice(temporary.getId(), CarryChoice.KEEP)));
+		assertThatThrownBy(() -> periodService.saveCarryOvers(periodId, assigneeId, request))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.ASSIGNMENT_NOT_MINE));
+		assertThat(temporary.getCarryChoice()).isNull();
+	}
+
+	// Regression: 없는 기간 id 로 조회하면 "진행 중인 기간이 없습니다." 가 나가던 문제
+	@Test
+	void 없는_기간_id_로_결산이나_이월을_요청하면_PERIOD_ID_NOT_FOUND_다() {
+		CarryOverRequest request = new CarryOverRequest(List.of(new CarryOverRequest.Choice(1L, CarryChoice.KEEP)));
+
+		assertThatThrownBy(() -> periodService.getSettlement(999_999L, ownerId))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.PERIOD_ID_NOT_FOUND));
+		assertThatThrownBy(() -> periodService.saveCarryOvers(999_999L, ownerId, request))
+				.isInstanceOfSatisfying(BusinessException.class,
+						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.PERIOD_ID_NOT_FOUND));
+	}
+
+	// Regression: 결산 주기가 1, 3, 7일인데 종료 알림이 "이번 주 결산" 이던 문제
+	@Test
+	void 기간_종료_알림_문구는_주기와_상관없다() {
+		startFirstPeriod();
+
+		periodService.end(houseId, ownerId);
+
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(member1Id))
+				.filteredOn(n -> n.getType() == NotificationType.PERIOD_ENDED)
+				.extracting(Notification::getMessage)
+				.containsExactly("이번 결산이 도착했어요");
+	}
+
 	private Long startFirstPeriod() {
 		distributionService.create(houseId, ownerId,
 				new DistributionCreateRequest(7, LocalDate.now(ZoneId.of("Asia/Seoul"))));
