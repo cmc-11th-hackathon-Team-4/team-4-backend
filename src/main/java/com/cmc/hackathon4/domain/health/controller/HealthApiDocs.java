@@ -1,4 +1,6 @@
-package com.cmc.hackathon4.domain.health;
+package com.cmc.hackathon4.domain.health.controller;
+
+import com.cmc.hackathon4.domain.health.dto.HealthResponse;
 
 import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

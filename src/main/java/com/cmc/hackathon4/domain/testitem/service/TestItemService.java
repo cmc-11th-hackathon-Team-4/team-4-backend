@@ -1,7 +1,13 @@
-package com.cmc.hackathon4.domain.testitem;
+package com.cmc.hackathon4.domain.testitem.service;
 
 import java.util.List;
 
+import com.cmc.hackathon4.domain.testitem.converter.TestItemConverter;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemCreateRequest;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemResponse;
+import com.cmc.hackathon4.domain.testitem.dto.TestItemUpdateRequest;
+import com.cmc.hackathon4.domain.testitem.entity.TestItem;
+import com.cmc.hackathon4.domain.testitem.repository.TestItemRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -17,17 +23,17 @@ public class TestItemService {
 
 	@Transactional
 	public TestItemResponse create(TestItemCreateRequest request) {
-		TestItem item = testItemRepository.save(new TestItem(request.title(), request.content()));
-		return TestItemResponse.from(item);
+		TestItem item = testItemRepository.save(TestItemConverter.toEntity(request));
+		return TestItemConverter.toResponse(item);
 	}
 
 	// shortcut: 페이지네이션 없이 전체 조회, 임시 테스트용이라 데이터가 적다는 전제
 	public List<TestItemResponse> findAll() {
-		return testItemRepository.findAll().stream().map(TestItemResponse::from).toList();
+		return testItemRepository.findAll().stream().map(TestItemConverter::toResponse).toList();
 	}
 
 	public TestItemResponse findById(Long id) {
-		return TestItemResponse.from(getItem(id));
+		return TestItemConverter.toResponse(getItem(id));
 	}
 
 	@Transactional
@@ -35,7 +41,7 @@ public class TestItemService {
 		TestItem item = getItem(id);
 		item.update(request.title(), request.content());
 		testItemRepository.flush(); // updatedAt 이 응답에 반영되도록 먼저 반영한다
-		return TestItemResponse.from(item);
+		return TestItemConverter.toResponse(item);
 	}
 
 	@Transactional

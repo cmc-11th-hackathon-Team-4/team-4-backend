@@ -1,4 +1,4 @@
-package com.cmc.hackathon4.domain.health;
+package com.cmc.hackathon4.domain.health.dto;
 
 import java.time.Instant;
 

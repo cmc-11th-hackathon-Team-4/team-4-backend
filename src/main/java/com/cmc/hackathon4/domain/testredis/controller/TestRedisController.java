@@ -1,4 +1,8 @@
-package com.cmc.hackathon4.domain.testredis;
+package com.cmc.hackathon4.domain.testredis.controller;
+
+import com.cmc.hackathon4.domain.testredis.dto.TestRedisResponse;
+import com.cmc.hackathon4.domain.testredis.dto.TestRedisSaveRequest;
+import com.cmc.hackathon4.domain.testredis.service.TestRedisService;
 
 import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;

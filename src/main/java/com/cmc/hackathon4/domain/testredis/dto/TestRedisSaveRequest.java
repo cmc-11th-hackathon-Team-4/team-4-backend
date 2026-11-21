@@ -1,4 +1,4 @@
-package com.cmc.hackathon4.domain.testredis;
+package com.cmc.hackathon4.domain.testredis.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
