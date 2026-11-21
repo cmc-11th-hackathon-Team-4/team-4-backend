@@ -17,4 +17,4 @@
 - 인증서 관리가 필요 없다. `setup-https.yml` 로 서버 접속 없이 전환·재적용할 수 있다.
 - DuckDNS 는 Public Suffix List 에 있어 Let's Encrypt 발급 한도를 서브도메인별로 받는다 (sslip.io 는 한도를 공유해 임시용).
 - 전환 후 IP 로는 접근할 수 없다 (https 리다이렉트 + 인증서가 도메인용).
-- 서버 IP 가 바뀌면 DuckDNS 의 IP 를 직접 갱신해야 한다 ([0004](0004-no-elastic-ip.md)).
+- DuckDNS 는 서버의 탄력적 IP 를 가리킨다. 탄력적 IP 를 바꾸면 DuckDNS 의 IP 도 직접 갱신해야 한다 ([0011](0011-elastic-ip.md)).

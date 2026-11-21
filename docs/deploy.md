@@ -7,7 +7,7 @@
 | 리전 | `ap-northeast-2` (서울) |
 | 서버 | EC2 1대, Ubuntu |
 | 공개 주소 | `https://niturnnaeturn.duckdns.org` (DuckDNS → 서버 IP, Caddy 가 Let's Encrypt 인증서 자동 발급·갱신) |
-| 서버 IP | 자동 할당 공인 IP (**탄력적 IP 아님**). 인스턴스를 *중지 → 시작* 하면 IP 가 바뀐다 → DuckDNS 의 IP 도 바꿔야 한다. 재부팅(reboot)은 괜찮다 ([ADR 0004](adr/0004-no-elastic-ip.md)) |
+| 서버 IP | 탄력적 IP. 인스턴스를 *중지 → 시작* 해도 바뀌지 않는다. DuckDNS 의 A 레코드가 이 IP 를 가리킨다 ([ADR 0011](adr/0011-elastic-ip.md)) |
 | DB | RDS MySQL. 데이터베이스는 앱이 처음 뜰 때 자동 생성 (`createDatabaseIfNotExist=true`) |
 | 서버 접속 | Session Manager (SSM). 배포도 SSM 으로 한다 ([ADR 0001](adr/0001-ssm-instead-of-ssh.md)) |
 | 보안 그룹 인바운드 | `80`, `443` (0.0.0.0/0) 만. `22`(SSH)는 2026-11-22 에 닫았다 (접속·배포 모두 SSM) |
@@ -56,7 +56,7 @@ main 에 머지(push) → .github/workflows/deploy.yml
 3. **EC2 생성**: Ubuntu 또는 Amazon Linux 2023. 키 페어는 "키 페어 없이 진행". 고급 세부 정보의 IAM 인스턴스 프로파일에 2 의 역할 지정.
    보안 그룹 인바운드는 `80`, `443` (0.0.0.0/0). `8080`, `6379` 는 열지 않는다.
    RDS 보안 그룹에는 이 EC2 보안 그룹을 소스로 `3306` 을 허용한다.
-4. **(권장) 탄력적 IP 할당 후 인스턴스에 연결**: 중지·시작해도 IP 가 바뀌지 않는다. 현재 운영은 쓰지 않고 있다 ([ADR 0004](adr/0004-no-elastic-ip.md)).
+4. **탄력적 IP 할당 후 인스턴스에 연결**: 중지·시작해도 IP 가 바뀌지 않는다. 연결하는 순간 IP 가 바뀌므로 DuckDNS 도 새 IP 로 갱신한다 ([ADR 0011](adr/0011-elastic-ip.md)).
 5. **GitHub Actions 용 IAM 사용자 생성**: 콘솔 액세스 없이 만들고 아래 인라인 정책만 붙인 뒤 액세스 키를 발급한다.
 
    ```json
@@ -140,7 +140,7 @@ Actions → Deploy to EC2 → Run workflow (또는 `main` 에 머지).
 
 ## 도메인 + HTTPS
 
-1. 도메인의 A 레코드를 서버 IP 로 지정한다. DuckDNS 는 <https://www.duckdns.org> 에서 IP 를 입력한다.
+1. 도메인의 A 레코드를 서버의 탄력적 IP 로 지정한다. DuckDNS 는 <https://www.duckdns.org> 에서 IP 를 입력한다.
 2. 아래 둘 중 하나로 서버에 적용한다.
    - **Actions (권장, 서버 접속 불필요)**: Actions → **Setup HTTPS (Caddy domain)** → Run workflow → 도메인 입력 (기본값 `niturnnaeturn.duckdns.org`).
      A 레코드 확인 → 최신 `ec2-setup.sh` 업로드 → SSM 으로 실행 → `https://<도메인>/api/v1/health` 확인까지 한다.
