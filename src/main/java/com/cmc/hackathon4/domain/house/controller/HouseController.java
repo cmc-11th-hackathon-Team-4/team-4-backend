@@ -2,6 +2,8 @@ package com.cmc.hackathon4.domain.house.controller;
 
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
+import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.service.HouseService;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
@@ -25,6 +27,12 @@ public class HouseController implements HouseApiDocs {
 	public ApiResponse<HouseCreateResponse> create(@CurrentUser User user,
 			@Valid @RequestBody HouseCreateRequest request) {
 		return ApiResponse.ok(houseService.create(user.getId(), request));
+	}
+
+	@Override
+	@PostMapping("/join")
+	public ApiResponse<HouseJoinResponse> join(@CurrentUser User user, @Valid @RequestBody HouseJoinRequest request) {
+		return ApiResponse.ok(houseService.join(user.getId(), request));
 	}
 
 }
