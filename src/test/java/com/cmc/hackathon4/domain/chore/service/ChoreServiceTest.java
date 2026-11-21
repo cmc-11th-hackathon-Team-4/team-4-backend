@@ -177,6 +177,70 @@ class ChoreServiceTest {
 				new ChoreBulkSaveRequest(List.of("분리수거", "분리수거 "))), ErrorCode.INVALID_INPUT);
 	}
 
+	@Test
+	void 추가는_대소문자_악센트_전각_공백만_다른_이름을_중복으로_본다() {
+		choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("Dish"));
+		choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("설거지"));
+
+		expectError(() -> choreService.createChore(house.getId(), member.getId(), new ChoreCreateRequest("dish")),
+				ErrorCode.CHORE_DUPLICATED);
+		expectError(() -> choreService.createChore(house.getId(), member.getId(), new ChoreCreateRequest("Dísh")),
+				ErrorCode.CHORE_DUPLICATED);
+		expectError(() -> choreService.createChore(house.getId(), member.getId(), new ChoreCreateRequest("ＤＩＳＨ")),
+				ErrorCode.CHORE_DUPLICATED);
+		expectError(
+				() -> choreService.createChore(house.getId(), member.getId(), new ChoreCreateRequest("　설거지")),
+				ErrorCode.CHORE_DUPLICATED);
+		expectError(
+				() -> choreService.createChore(house.getId(), member.getId(), new ChoreCreateRequest("설​거지")),
+				ErrorCode.CHORE_DUPLICATED);
+	}
+
+	@Test
+	void 일괄_저장도_대소문자_악센트만_다른_이름을_중복으로_보고_필드_메시지를_준다() {
+		assertThatThrownBy(() -> choreService.replaceChores(house.getId(), owner.getId(),
+				new ChoreBulkSaveRequest(List.of("Dish", "Dísh", "DISH")))).isInstanceOf(BusinessException.class)
+				.satisfies(e -> {
+					assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).isEqualTo("names: 중복된 이름이 있습니다: Dísh, DISH");
+				});
+		assertThat(choreRepository.findAllByHouseId(house.getId())).isEmpty();
+	}
+
+	@Test
+	void 보이지_않는_문자나_공백만_있는_이름은_거부한다() {
+		assertThatThrownBy(
+				() -> choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("​")))
+				.isInstanceOf(BusinessException.class).satisfies(e -> {
+					assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).startsWith("name:");
+				});
+		expectError(() -> choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("　﻿")),
+				ErrorCode.INVALID_INPUT);
+		assertThatThrownBy(() -> choreService.replaceChores(house.getId(), owner.getId(),
+				new ChoreBulkSaveRequest(List.of("설거지", "​‍")))).isInstanceOf(BusinessException.class)
+				.satisfies(e -> assertThat(e.getMessage()).startsWith("names:"));
+		assertThat(choreRepository.findAllByHouseId(house.getId())).isEmpty();
+	}
+
+	@Test
+	void 이름은_보이지_않는_문자와_전각_공백을_정리해_저장하고_길이는_정리한_뒤로_검사한다() {
+		String twenty = "가".repeat(20);
+
+		ChoreCreateResponse created = choreService.createChore(house.getId(), owner.getId(),
+				new ChoreCreateRequest("  　" + twenty + "​ "));
+		ChoreListResponse replaced = choreService.replaceChores(house.getId(), owner.getId(),
+				new ChoreBulkSaveRequest(List.of(" 빨래   널기 ", "﻿" + "나".repeat(20))));
+
+		assertThat(created.chore().name()).isEqualTo(twenty);
+		assertThat(replaced.chores()).extracting(ChoreResponse::name).containsExactly("빨래 널기", "나".repeat(20));
+		assertThatThrownBy(() -> choreService.createChore(house.getId(), owner.getId(),
+				new ChoreCreateRequest("다".repeat(21)))).isInstanceOf(BusinessException.class).satisfies(e -> {
+					assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).isEqualTo("name: 집안일 이름은 20자 이하여야 합니다.");
+				});
+	}
+
 	// ---- 집안일 삭제 / 한도 ----
 
 	private Period startHouse() {

@@ -112,12 +112,45 @@ class DistributionServiceTest {
 	}
 
 	@Test
+	void 시작일이_과거이면_에러는_startDate_필드로_나간다() {
+		DistributionCreateRequest past = new DistributionCreateRequest(7,
+				LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1));
+
+		assertThatThrownBy(() -> distributionService.create(houseId, ownerId, past))
+				.isInstanceOf(BusinessException.class)
+				.satisfies(e -> assertThat(e.getMessage()).startsWith("startDate:"));
+	}
+
+	@Test
+	void 시작일은_오늘부터_30일_뒤까지만_고를_수_있다() {
+		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+
+		assertThat(distributionService.create(houseId, ownerId, new DistributionCreateRequest(7, today.plusDays(30)))
+				.period()
+				.startDate()).isEqualTo(today.plusDays(30));
+		for (LocalDate tooFar : List.of(today.plusDays(31), LocalDate.of(9999, 12, 25), LocalDate.of(9999, 12, 31))) {
+			assertThatThrownBy(() -> distributionService.create(houseId, ownerId,
+					new DistributionCreateRequest(7, tooFar)))
+					.isInstanceOf(BusinessException.class)
+					.satisfies(e -> {
+						assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+						assertThat(e.getMessage()).isEqualTo("startDate: 시작일은 오늘부터 30일 이내여야 합니다.");
+					});
+		}
+		assertThat(periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY).orElseThrow().getStartDate())
+				.isEqualTo(today.plusDays(30));
+	}
+
+	@Test
 	void 집안일이_없으면_배분을_만들_수_없다() {
 		choreRepository.findAllByHouseId(houseId).forEach(Chore::deactivate);
 
 		assertThatThrownBy(() -> distributionService.create(houseId, ownerId, request()))
-				.extracting(e -> ((BusinessException) e).getErrorCode())
-				.isEqualTo(ErrorCode.INVALID_INPUT);
+				.isInstanceOf(BusinessException.class)
+				.satisfies(e -> {
+					assertThat(((BusinessException) e).getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+					assertThat(e.getMessage()).startsWith("chores:");
+				});
 	}
 
 	@Test

@@ -41,6 +41,9 @@ public class DistributionService {
 
 	private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
+	/** 시작일은 오늘(KST)부터 이 일수 뒤까지만 고를 수 있다. */
+	private static final int MAX_START_DATE_DAYS_AHEAD = 30;
+
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseRepository houseRepository;
 	private final HouseMemberRepository houseMemberRepository;
@@ -63,9 +66,16 @@ public class DistributionService {
 		if (!House.isValidSettlementCycle(request.settlementCycle())) {
 			throw new BusinessException(ErrorCode.INVALID_INPUT, "settlementCycle: 결산 주기는 1, 3, 7일 중 하나여야 합니다.");
 		}
-		if (request.startDate().isBefore(LocalDate.now(KST)) || choreRepository
-				.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId).isEmpty()) {
-			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		LocalDate today = LocalDate.now(KST);
+		if (request.startDate().isBefore(today)) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "startDate: 시작일은 오늘 이후여야 합니다.");
+		}
+		if (request.startDate().isAfter(today.plusDays(MAX_START_DATE_DAYS_AHEAD))) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT,
+					"startDate: 시작일은 오늘부터 " + MAX_START_DATE_DAYS_AHEAD + "일 이내여야 합니다.");
+		}
+		if (choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId).isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "chores: 집안일을 1개 이상 등록해 주세요.");
 		}
 
 		Long readyPeriodId = periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
