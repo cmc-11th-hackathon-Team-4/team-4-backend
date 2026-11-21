@@ -8,6 +8,7 @@ import com.cmc.hackathon4.domain.house.converter.HouseConverter;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
@@ -27,6 +28,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -56,25 +58,41 @@ public class HouseService {
 		return HouseConverter.toCreateResponse(house);
 	}
 
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public HouseJoinResponse join(Long userId, HouseJoinRequest request) {
 		User user = findUser(userId);
 		if (houseMemberRepository.existsByUserId(userId)) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_JOINED);
 		}
-		House found = houseRepository.findByInviteCode(request.inviteCode())
+		// 동시 참여로 정원을 넘지 않도록 집 행을 잠근 뒤 상태와 인원을 확인한다. 잠금을 기다린 뒤의 조회가 앞선 참여를 보도록 READ_COMMITTED 로 돈다.
+		House house = houseRepository.findByInviteCodeForUpdate(request.inviteCode())
 				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_INVALID_INVITE_CODE));
-		// 동시 참여로 정원을 넘지 않도록 집 행을 잠근 뒤 상태와 인원을 확인한다.
-		House house = houseRepository.findByIdForUpdate(found.getId())
+		validateJoinable(house, houseMemberRepository.countByHouseId(house.getId()));
+		houseMemberRepository.save(new HouseMember(house, user, MemberRole.MEMBER));
+		return HouseConverter.toJoinResponse(house);
+	}
+
+	/** S-13-C 참여 전 미리보기. 로그인 없이 초대 코드로 조회하며, 참여할 수 없는 집이면 join 과 같은 에러를 낸다. */
+	public HouseInvitePreviewResponse getInvitePreview(String inviteCode) {
+		// 경로 변수 제약(@Pattern)을 컨트롤러에 달면 XxxApiDocs 인터페이스와 충돌(HV000151)해서 여기서 검사한다
+		if (inviteCode == null || !inviteCode.matches("^[A-Z0-9]{6}$")) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "inviteCode: 초대 코드는 영대문자와 숫자 6자리여야 합니다.");
+		}
+		House house = houseRepository.findByInviteCode(inviteCode)
 				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_INVALID_INVITE_CODE));
+		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(house.getId());
+		validateJoinable(house, members.size());
+		return HouseConverter.toInvitePreviewResponse(house, members);
+	}
+
+	// join 과 미리보기가 같은 기준을 쓰도록 한 곳에 둔다
+	private void validateJoinable(House house, long memberCount) {
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
-		if (houseMemberRepository.countByHouseId(house.getId()) >= House.MAX_MEMBERS) {
+		if (memberCount >= House.MAX_MEMBERS) {
 			throw new BusinessException(ErrorCode.HOUSE_FULL);
 		}
-		houseMemberRepository.save(new HouseMember(house, user, MemberRole.MEMBER));
-		return HouseConverter.toJoinResponse(house);
 	}
 
 	public HouseDetailResponse getDetail(Long houseId, Long userId) {
@@ -100,7 +118,7 @@ public class HouseService {
 	}
 
 	/** 방장이 WAITING 상태의 집에서 구성원을 내보낸다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void removeMember(Long houseId, Long ownerUserId, Long targetUserId) {
 		houseMemberValidator.getOwner(houseId, ownerUserId);
 		// 동시 참여와 겹치지 않도록 집 행을 잠근다.

@@ -7,6 +7,8 @@ import java.util.Optional;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface PeriodRepository extends JpaRepository<Period, Long> {
 
@@ -24,5 +26,9 @@ public interface PeriodRepository extends JpaRepository<Period, Long> {
 
 	/** 특정 상태이면서 결산일(endDate)이 date 보다 앞선 기간 (자동 종료 대상 찾기) */
 	List<Period> findAllByStatusAndEndDateBefore(PeriodStatus status, LocalDate date);
+
+	/** 기간이 속한 집의 id. 엔티티를 읽기 전에 집 행을 먼저 잠글 때 쓴다. */
+	@Query("select p.house.id from Period p where p.id = :id")
+	Optional<Long> findHouseIdById(@Param("id") Long id);
 
 }

@@ -51,4 +51,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 	@Query("delete from Assignment a where a.period.id = :periodId and a.chore.id = :choreId")
 	void deleteAllByPeriodIdAndChoreId(@Param("periodId") Long periodId, @Param("choreId") Long choreId);
 
+	/** 짐이 속한 집의 id. 엔티티를 읽기 전에 집 행을 먼저 잠글 때 쓴다. */
+	@Query("select a.period.house.id from Assignment a where a.id = :id")
+	Optional<Long> findHouseIdById(@Param("id") Long id);
+
 }

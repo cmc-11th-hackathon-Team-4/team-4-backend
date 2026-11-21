@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
+import com.cmc.hackathon4.domain.house.entity.House;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,7 +17,7 @@ class ChoreDistributorTest {
 	void 고정된_짐이_없으면_개수_차이가_최대_1이다() {
 		for (int seed = 0; seed < 50; seed++) {
 			ChoreDistributor distributor = new ChoreDistributor(new Random(seed));
-			for (int members = 1; members <= 4; members++) {
+			for (int members = 1; members <= House.MAX_MEMBERS; members++) {
 				for (int chores = 0; chores <= 13; chores++) {
 					Map<Integer, List<Integer>> result = distributor.distribute(range(members), new HashMap<>(),
 							range(chores));

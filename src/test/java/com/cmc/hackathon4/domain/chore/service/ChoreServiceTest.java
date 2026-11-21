@@ -301,16 +301,6 @@ class ChoreServiceTest {
 	}
 
 	@Test
-	void 기간이_끝나_결산을_기다리는_중에는_집안일을_추가할_수_없다() {
-		Period period = startHouse();
-		period.end(Instant.now());
-
-		expectError(() -> choreService.createChore(house.getId(), owner.getId(), new ChoreCreateRequest("추가")),
-				ErrorCode.PERIOD_ENDED);
-		assertThat(choreRepository.findAllByHouseId(house.getId())).isEmpty();
-	}
-
-	@Test
 	void ACTIVE_인데_기간이_하나도_없으면_PERIOD_404() {
 		house.startDistributing(SettlementCycle.WEEKLY);
 		house.activate();

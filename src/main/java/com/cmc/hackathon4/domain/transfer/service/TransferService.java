@@ -27,6 +27,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -46,9 +47,10 @@ public class TransferService {
 	private final NotificationRepository notificationRepository;
 
 	/** 덜어가기(#20). 같은 집 구성원이면 누구나 상대의 TODO 짐을 즉시 내 것으로 만든다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferRelieveResponse relieve(Long userId, Long assignmentId) {
 		User me = getUser(userId);
+		lockHouseOfAssignment(assignmentId);
 		Assignment assignment = getAssignment(assignmentId);
 		houseMemberValidator.getMember(assignment.getPeriod().getHouse().getId(), userId);
 		if (assignment.getAssignee().getId().equals(userId)) {
@@ -63,7 +65,7 @@ public class TransferService {
 		if (transferRepository.existsByAssignmentIdAndStatus(assignmentId, TransferStatus.PENDING)) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_REQUEST_PENDING);
 		}
-		checkAssignmentLimit(assignment.getPeriod().getHouse().getId(), assignment.getPeriod().getId(), userId);
+		checkAssignmentLimit(assignment.getPeriod().getId(), userId);
 
 		User original = assignment.getAssignee();
 		assignment.changeAssignee(me);
@@ -75,9 +77,10 @@ public class TransferService {
 	}
 
 	/** 짐 올리기 부탁(#21). 담당자 본인이 내 TODO 짐을 같은 집의 다른 구성원에게 부탁한다. 알림은 만들지 않는다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferStatusResponse request(Long userId, Long assignmentId, TransferRequestCreateRequest request) {
 		User me = getUser(userId);
+		lockHouseOfAssignment(assignmentId);
 		Assignment assignment = getAssignment(assignmentId);
 		if (!assignment.getAssignee().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_MINE);
@@ -102,12 +105,13 @@ public class TransferService {
 	}
 
 	/** 부탁 받기(#22). 받는 사람만 가능. 담당자가 나로 바뀌고 부탁한 사람에게 REQUEST_ACCEPTED 알림이 간다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferAcceptResponse accept(Long userId, Long transferId) {
 		User me = getUser(userId);
+		lockHouseOfTransfer(transferId);
 		Transfer transfer = getReceivedPendingTransfer(userId, transferId);
 		Assignment assignment = transfer.getAssignment();
-		checkAssignmentLimit(assignment.getPeriod().getHouse().getId(), assignment.getPeriod().getId(), userId);
+		checkAssignmentLimit(assignment.getPeriod().getId(), userId);
 		transfer.accept(Instant.now());
 		assignment.changeAssignee(me);
 		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_ACCEPTED,
@@ -116,9 +120,10 @@ public class TransferService {
 	}
 
 	/** 부탁 거절(#23). 받는 사람만 가능. 짐은 그대로 두고 부탁한 사람에게 REQUEST_DECLINED 알림이 간다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferStatusResponse decline(Long userId, Long transferId) {
 		User me = getUser(userId);
+		lockHouseOfTransfer(transferId);
 		Transfer transfer = getReceivedPendingTransfer(userId, transferId);
 		transfer.decline(Instant.now());
 		notificationService.send(transfer.getFromUser(), me, transfer, NotificationType.REQUEST_DECLINED,
@@ -131,8 +136,9 @@ public class TransferService {
 	 * RELIEVE 는 가져간 사람(toUser)이 되돌리며, 짐이 아직 내 TODO 일 때만 가능하고 짐은 원래 담당자에게 돌아간다.
 	 * 되돌린 이동은 CANCELED 로 남긴다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void cancel(Long userId, Long transferId) {
+		lockHouseOfTransfer(transferId);
 		Transfer transfer = getTransfer(transferId);
 		Instant now = Instant.now();
 		if (transfer.getType() == TransferType.REQUEST) {
@@ -158,8 +164,7 @@ public class TransferService {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
 		}
 		// 짐이 돌아가는 원래 담당자의 짐이 이미 한도라면 되돌릴 수 없다
-		checkAssignmentLimit(assignment.getPeriod().getHouse().getId(), assignment.getPeriod().getId(),
-				transfer.getFromUser().getId());
+		checkAssignmentLimit(assignment.getPeriod().getId(), transfer.getFromUser().getId());
 		// 가져간 사람이 그 짐을 다시 누구에게 부탁해 둔 상태였다면 함께 취소한다.
 		for (Transfer pending : transferRepository.findAllByAssignmentIdAndStatus(assignment.getId(),
 				TransferStatus.PENDING)) {
@@ -173,9 +178,10 @@ public class TransferService {
 	}
 
 	/** 하트로 고마움 전하기(#25). RELIEVE 이동에만, 원래 담당자(fromUser)만, 한 번만 보낼 수 있다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferHeartResponse heart(Long userId, Long transferId) {
 		User me = getUser(userId);
+		lockHouseOfTransfer(transferId);
 		Transfer transfer = getTransfer(transferId);
 		if (!transfer.getFromUser().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE, "원래 담당자만 하트를 보낼 수 있습니다.");
@@ -193,10 +199,8 @@ public class TransferService {
 		return TransferConverter.toHeartResponse(transfer);
 	}
 
-	/** 집 행을 잠근 뒤 그 기간에서 사용자의 남은(TODO) 짐이 한도(5개)에 이르렀으면 막는다. 동시에 짐이 늘어나는 것을 막으려고 잠근다. */
-	private void checkAssignmentLimit(Long houseId, Long periodId, Long userId) {
-		houseRepository.findByIdForUpdate(houseId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+	/** 그 기간에서 사용자의 남은(TODO) 짐이 한도(5개)에 이르렀으면 막는다. 호출 전에 집 행을 이미 잠가 둔 상태여야 한다. */
+	private void checkAssignmentLimit(Long periodId, Long userId) {
 		if (assignmentRepository.countByPeriodIdAndAssigneeIdAndStatusAndDeletedAtIsNull(periodId, userId,
 				AssignmentStatus.TODO) >= MAX_ASSIGNMENTS_PER_USER) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
@@ -216,6 +220,23 @@ public class TransferService {
 			throw new BusinessException(ErrorCode.PERIOD_ENDED);
 		}
 		return transfer;
+	}
+
+	/**
+	 * 같은 집의 짐·이동을 바꾸는 요청이 겹치지 않도록 집 행을 잠근다. 짐이나 이동 엔티티를 읽기 전에 불러야 잠금을 기다린 뒤의 최신 상태를 읽는다.
+	 */
+	private void lockHouseOfAssignment(Long assignmentId) {
+		lockHouse(assignmentRepository.findHouseIdById(assignmentId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND)));
+	}
+
+	private void lockHouseOfTransfer(Long transferId) {
+		lockHouse(transferRepository.findHouseIdById(transferId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND)));
+	}
+
+	private void lockHouse(Long houseId) {
+		houseRepository.findByIdForUpdate(houseId).orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
 	}
 
 	private Transfer getTransfer(Long transferId) {

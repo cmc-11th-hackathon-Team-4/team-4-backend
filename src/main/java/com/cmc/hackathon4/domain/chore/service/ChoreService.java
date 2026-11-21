@@ -22,6 +22,7 @@ import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.period.service.PeriodService;
 import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
 import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -30,6 +31,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -51,6 +53,7 @@ public class ChoreService {
 	private final AssignmentRepository assignmentRepository;
 	private final UserRepository userRepository;
 	private final HouseMemberValidator houseMemberValidator;
+	private final PeriodService periodService;
 
 	public ChorePresetResponse findPresets() {
 		return ChoreConverter.toPresetResponse(PRESETS);
@@ -64,12 +67,13 @@ public class ChoreService {
 	/**
 	 * 구성원이 집안일을 추가한다. 중복 이름 검사 뒤 한도를 확인하고, 모두 통과해야 저장한다.
 	 * WAITING 이면 활성 집안일이 10개 미만일 때만 만들고 assignment 는 null 이다.
-	 * ACTIVE 이면 진행 중(ACTIVE) 기간의 남은 짐이 집 전체 10개 미만, 추가한 사람 5개 미만일 때만 만든다.
+	 * ACTIVE 이고 진행 중(ACTIVE) 기간이 있으면 그 기간의 남은 짐이 집 전체 10개 미만, 추가한 사람 5개 미만일 때만 만든다.
 	 * 이때 집안일은 그 기간에만 유효한(temporary) 것으로 만들어 추가한 사람의 짐을 바로 만들고, 기간이 끝나면 비활성화된다.
-	 * DISTRIBUTING 이면 배분 미리보기가 어긋나므로 HOUSE-409-2, ACTIVE 인데 기간이 아예 없으면 PERIOD-404,
-	 * 지난 기간만 있고 진행 중인 기간이 없으면(결산 대기) PERIOD-409 이다.
+	 * ACTIVE 인데 진행 중인 기간이 없지만 지난 기간이 있으면(기간 사이) 활성 집안일이 10개 미만일 때만 임시(temporary)
+	 * 집안일로 만들고 assignment 는 null 이다. 준비해 둔 다음 기간(READY)이 있으면 새 집안일이 빠지지 않도록 그 배분을 다시 만든다.
+	 * DISTRIBUTING 이면 배분 미리보기가 어긋나므로 HOUSE-409-2, 기간이 아예 없으면 PERIOD-404 이다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreCreateResponse createChore(Long houseId, Long userId, ChoreCreateRequest request) {
 		houseMemberValidator.getMember(houseId, userId);
 		House house = houseRepository.findByIdForUpdate(houseId)
@@ -93,7 +97,15 @@ public class ChoreService {
 			if (periodRepository.findFirstByHouseIdOrderByRoundDesc(houseId).isEmpty()) {
 				throw new BusinessException(ErrorCode.PERIOD_NOT_FOUND);
 			}
-			throw new BusinessException(ErrorCode.PERIOD_ENDED);
+			// 기간 사이: 다음 기간에 배분되고 그 기간이 끝나면 비활성화되는 임시 집안일로 만든다
+			if (choreRepository.countByHouseIdAndActiveTrue(houseId) >= MAX_CHORES_PER_HOUSE) {
+				throw new BusinessException(ErrorCode.CHORE_LIMIT_EXCEEDED);
+			}
+			Chore chore = choreRepository.save(ChoreConverter.toTemporaryEntity(house, request.name()));
+			// refreshNextDistribution 이 영속성 컨텍스트를 비우므로 응답을 먼저 만든다
+			ChoreCreateResponse response = ChoreConverter.toCreateResponse(chore, null);
+			periodService.refreshNextDistribution(houseId);
+			return response;
 		}
 		if (assignmentRepository.countByPeriodIdAndStatusAndDeletedAtIsNull(period.getId(),
 				AssignmentStatus.TODO) >= MAX_CHORES_PER_HOUSE) {
@@ -145,7 +157,7 @@ public class ChoreService {
 	}
 
 	/** 방장이 집안일 목록을 통째로 교체한다. WAITING 에는 짐이 없어 기존 행을 지우고 새로 저장해도 된다. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreListResponse replaceChores(Long houseId, Long userId, ChoreBulkSaveRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
 		House house = houseRepository.findByIdForUpdate(houseId)

@@ -170,8 +170,11 @@ class PeriodServiceTest {
 		assertThat(next.prepared()).isTrue();
 		assertThat(next.period().status()).isEqualTo(PeriodStatus.READY);
 		assertThat(next.period().round()).isEqualTo(2);
-		assertThat(next.period().startDate()).isEqualTo(period1.getEndDate().plusDays(1));
-		assertThat(next.period().endDate()).isEqualTo(period1.getEndDate().plusDays(7));
+		// 일찍 종료했어도 다음 기간은 직전 종료일 다음 날이 아니라 오늘(KST)부터다
+		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+		assertThat(period1.getEndDate()).isAfter(today);
+		assertThat(next.period().startDate()).isEqualTo(today);
+		assertThat(next.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
 		assertThat(next.totalCount()).isEqualTo(7);
 		NextPeriodResponse viewed = periodService.getNext(houseId, member1Id);
 		assertThat(viewed.prepared()).isTrue();
@@ -180,6 +183,8 @@ class PeriodServiceTest {
 		var started = periodService.startNext(houseId, ownerId);
 
 		assertThat(started.period().status()).isEqualTo(PeriodStatus.ACTIVE);
+		assertThat(started.period().startDate()).isEqualTo(today);
+		assertThat(started.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
 		assertThat(started.period().round()).isEqualTo(2);
 		assertThat(houseRepository.findById(houseId).orElseThrow().getStatus()).isEqualTo(HouseStatus.ACTIVE);
 		assertThat(notificationTypes(member1Id)).contains(NotificationType.PERIOD_STARTED);
@@ -367,6 +372,74 @@ class PeriodServiceTest {
 		assertThat(next.members().stream().flatMap(member -> member.chores().stream()))
 				.extracting(NextPeriodResponse.Chore::choreId)
 				.doesNotContain(addedChoreId);
+	}
+
+	// Regression: ISSUE-004 — 다음 기간이 준비된 뒤 추가한 집안일이 다음 회차 배분에서 빠지던 문제
+	// Found by /qa on 2026-11-22
+	@Test
+	void 다음_기간이_준비된_뒤_추가한_집안일도_다음_기간_배분에_들어간다() {
+		startFirstPeriod();
+		periodService.end(houseId, ownerId);
+		Long nextPeriodId = periodService.createNext(houseId, ownerId).period().id();
+
+		Long choreId = choreService.createChore(houseId, member1Id, new ChoreCreateRequest("화분 물주기")).chore().id();
+
+		List<Assignment> assignments = assignmentRepository.findAllByPeriodIdOrderByIdAsc(nextPeriodId);
+		assertThat(assignments).hasSize(8);
+		assertThat(assignments).extracting(a -> a.getChore().getId()).containsOnlyOnce(choreId);
+	}
+
+	// Regression: ISSUE-005 — 늦게 시작한 다음 기간이 이미 지난 날짜로 시작되던 문제
+	// Found by /qa on 2026-11-22
+	@Test
+	void 준비해_둔_다음_기간을_며칠_뒤에_시작해도_시작하는_날부터다() {
+		startFirstPeriod();
+		periodService.end(houseId, ownerId);
+		Long nextPeriodId = periodService.createNext(houseId, ownerId).period().id();
+		// 방장이 다음 기간을 만들어 두고 열흘 뒤에 시작한 상황
+		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+		periodRepository.findById(nextPeriodId)
+				.orElseThrow()
+				.reschedule(today.minusDays(10), SettlementCycle.WEEKLY.endDateFrom(today.minusDays(10)));
+
+		var started = periodService.startNext(houseId, ownerId);
+
+		assertThat(started.period().startDate()).isEqualTo(today);
+		assertThat(started.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+	}
+
+	@Test
+	void 기간_사이에_추가한_집안일은_임시로_다음_기간에_배분되고_그_기간이_끝나면_비활성화된다() {
+		startFirstPeriod();
+		periodService.end(houseId, ownerId);
+		Long nextPeriodId = periodService.createNext(houseId, ownerId).period().id();
+
+		Long choreId = choreService.createChore(houseId, member1Id, new ChoreCreateRequest("화분 물주기")).chore().id();
+
+		Chore added = choreRepository.findById(choreId).orElseThrow();
+		assertThat(added.isTemporary()).isTrue();
+		assertThat(assignmentRepository.findAllByPeriodIdOrderByIdAsc(nextPeriodId))
+				.extracting(a -> a.getChore().getId())
+				.containsOnlyOnce(choreId);
+
+		periodService.startNext(houseId, ownerId);
+		periodService.end(houseId, ownerId);
+
+		assertThat(choreRepository.findById(choreId).orElseThrow().isActive()).isFalse();
+	}
+
+	@Test
+	void 기간_사이에도_활성_집안일이_10개면_추가할_수_없다() {
+		startFirstPeriod();
+		periodService.end(houseId, ownerId);
+		long active = choreRepository.countByHouseIdAndActiveTrue(houseId);
+		for (long i = active; i < 10; i++) {
+			choreService.createChore(houseId, ownerId, new ChoreCreateRequest("추가" + i));
+		}
+
+		assertThatThrownBy(() -> choreService.createChore(houseId, ownerId, new ChoreCreateRequest("초과")))
+				.extracting(e -> ((BusinessException) e).getErrorCode())
+				.isEqualTo(ErrorCode.CHORE_LIMIT_EXCEEDED);
 	}
 
 	private Long startFirstPeriod() {
