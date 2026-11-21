@@ -17,7 +17,10 @@ public enum ErrorCode {
 	METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "COMMON-405", "지원하지 않는 HTTP 메서드입니다."),
 	CONFLICT(HttpStatus.CONFLICT, "COMMON-409", "다른 데이터와 충돌하여 처리할 수 없습니다."),
 	UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "COMMON-415", "지원하지 않는 Content-Type 입니다."),
-	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-500", "서버 오류가 발생했습니다.");
+	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON-500", "서버 오류가 발생했습니다."),
+
+	// [TEST] 임시 테스트 API
+	TEST_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "TEST-ITEM-404", "테스트 아이템을 찾을 수 없습니다.");
 
 	private final HttpStatus status;
 	private final String code;
