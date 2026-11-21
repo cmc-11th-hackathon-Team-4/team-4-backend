@@ -5,7 +5,7 @@
 #   sudo bash ec2-setup.sh api.example.com    # 도메인 지정: https://api.example.com (인증서 자동 발급)
 #
 # 하는 일:
-#   1) Java 21, Redis(localhost:6379), AWS CLI 설치
+#   1) Java 21, AWS CLI 설치
 #   2) 서비스 전용 유저(team4) + /opt/team4-backend 생성, systemd 서비스 등록
 #   3) 배포 스크립트 /usr/local/bin/team4-deploy.sh 설치 (GitHub Actions 가 SSM 으로 호출)
 #   4) Caddy 설치 + localhost:8080 리버스 프록시
@@ -43,17 +43,6 @@ else
   exit 1
 fi
 java -version
-
-# ---------- 1-1) Redis (같은 서버, localhost:6379 에서만 접근. 보안 그룹에 6379 를 열지 않는다) ----------
-# 앱은 Spring 기본값(localhost:6379)으로 붙는다. 기본 설정이 127.0.0.1 바인딩 + protected-mode 라 외부 노출 없음
-if command -v dnf >/dev/null 2>&1; then
-  dnf install -y redis6
-  REDIS_SERVICE=redis6
-else
-  apt-get install -y redis-server
-  REDIS_SERVICE=redis-server
-fi
-systemctl enable --now "$REDIS_SERVICE"
 
 # AWS CLI v2 (Amazon Linux 2023 은 기본 설치, Ubuntu 는 공식 설치 파일로 설치)
 export PATH="/usr/local/bin:$PATH"
@@ -188,7 +177,6 @@ systemctl restart caddy
 
 echo
 echo "완료"
-echo "  Redis     : ${REDIS_SERVICE}.service (localhost:6379, 외부 비공개)"
 echo "  앱 서비스 : ${SERVICE}.service (user=${APP_USER}, dir=${APP_DIR}) - app.jar 가 없어 아직 시작하지 않음"
 if [ -n "$DOMAIN" ]; then
   echo "  Caddy     : https://${DOMAIN} -> localhost:8080 (인증서는 DNS 가 이 서버를 가리키면 자동 발급)"

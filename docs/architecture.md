@@ -12,15 +12,13 @@
 [Spring Boot (systemd: team4-backend)]
    ├─ CORS: app.cors.allowed-origin-patterns 에 있는 출처만 허용
    ├─ Controller → Service → Repository
-   ├──▶ [RDS MySQL]          (JPA, ddl-auto: update)
-   └──▶ [Redis localhost:6379] (같은 EC2, 외부 비공개)
+   └──▶ [RDS MySQL]          (JPA, ddl-auto: update)
 ```
 
 | 구성 요소 | 로컬 | 운영 |
 | --- | --- | --- |
 | 앱 | `./gradlew bootRun` (`local` 프로필) | EC2 systemd, `--spring.profiles.active=prod` |
 | MySQL | docker-compose `localhost:3307` | RDS (`APP_ENV` 의 `DB_*`) |
-| Redis | docker-compose `localhost:6380` | EC2 `redis-server` `localhost:6379` |
 | 리버스 프록시 | 없음 | Caddy |
 | 테스트 | H2 인메모리 | - |
 
@@ -80,12 +78,12 @@ src/main/java/com/cmc/hackathon4/
 | 파일 | 적용 | 내용 |
 | --- | --- | --- |
 | `src/main/resources/application.yml` | 항상 | 기본 프로필(`local`), JPA 공통, **CORS 허용 출처** |
-| `src/main/resources/application-local.yml` | 로컬 | docker-compose DB/Redis, `.env` 읽기 |
+| `src/main/resources/application-local.yml` | 로컬 | docker-compose DB, `.env` 읽기 |
 | `src/main/resources/application-prod.yml` | 운영 | 환경변수(`DB_*`)로 RDS, 프록시 헤더 처리 |
 | `src/test/resources/application.yml` | 테스트 | H2. 메인 `application.yml` 을 **통째로 대체**한다 |
 | `.env.example` | 로컬 | `.env` 템플릿 |
-| `docker-compose.yml` | 로컬 | MySQL, Redis |
-| `scripts/ec2-setup.sh` | 운영 서버 | Java, Redis, Caddy, systemd, 배포 스크립트 설치 |
+| `docker-compose.yml` | 로컬 | MySQL |
+| `scripts/ec2-setup.sh` | 운영 서버 | Java, Caddy, systemd, 배포 스크립트 설치 |
 | `.github/workflows/deploy.yml` | CI | `main` push 시 배포 |
 | `.github/workflows/setup-https.yml` | CI (수동) | 서버에 `ec2-setup.sh <도메인>` 적용 |
 | `.github/workflows/pr-check.yml` | CI (PR) | `main` 대상 PR 마다 `scripts/check-docs.sh` 실행 (배포·AWS 권한 없음) |

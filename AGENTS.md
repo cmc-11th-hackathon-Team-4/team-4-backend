@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/chore` 가 하위 패키지 6개를 모두 갖춘 형태, `global/`).
+Spring Boot 4 / Java 21 / Lombok / JPA + MySQL. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/chore` 가 하위 패키지 6개를 모두 갖춘 형태, `global/`).
 구성·흐름은 `docs/architecture.md`, 로컬 실행은 `docs/local-dev.md`, 배포는 `docs/deploy.md`, 결정 이유는 `docs/adr/`.
 
 ## 필수
@@ -75,7 +75,7 @@ com/cmc/hackathon4/
 | 새 에러 코드 / 서비스가 던지는 에러 변경 | `ErrorCode` + 그 에러를 낼 수 있는 API 의 `XxxApiDocs` `@ApiErrorCodes` (Swagger 전체 표는 자동) |
 | 운영 환경변수 추가 | `application-prod.yml` + GitHub Secret `APP_ENV` + `docs/deploy.md` 의 APP_ENV 예시 |
 | 로컬 환경변수 추가 | `application-local.yml` + `.env.example` + `docs/local-dev.md` |
-| 인프라 구성요소 추가 (예: Redis) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
+| 인프라 구성요소 추가 (예: 캐시 서버) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
 | 프론트 주소 추가 | `application.yml` 의 `app.cors.allowed-origin-patterns` |
 
 문서 수정 후 `bash scripts/check-docs.sh` 로 문서와 코드가 맞는지 확인한다. PR 을 올리면 `PR Check` 워크플로가 같은 검사를 자동으로 돌린다.

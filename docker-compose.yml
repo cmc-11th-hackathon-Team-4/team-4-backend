@@ -18,12 +18,5 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
 
-  # 로컬 Redis. 호스트 6379 는 다른 Redis 와 겹칠 수 있어 6380 으로 뺀다 (MySQL 3307 과 같은 이유)
-  redis:
-    image: redis:7.4
-    container_name: hackathon4-redis
-    ports:
-      - "6380:6379"
-
 volumes:
   mysql-data:

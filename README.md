@@ -1,6 +1,6 @@
 # team-4-backend
 
-CMC 해커톤 4조 백엔드. Spring Boot 4.1.3 / Java 21 / JPA + MySQL / Redis.
+CMC 해커톤 4조 백엔드. Spring Boot 4.1.3 / Java 21 / JPA + MySQL.
 
 | 항목 | 값 |
 | --- | --- |
@@ -12,7 +12,7 @@ CMC 해커톤 4조 백엔드. Spring Boot 4.1.3 / Java 21 / JPA + MySQL / Redis.
 ## 빠른 시작 (로컬)
 
 ```bash
-docker compose up -d          # MySQL(3307) + Redis(6380)
+docker compose up -d          # MySQL(3307)
 cp .env.example .env          # 선택: 없으면 기본값으로 동작
 ./gradlew bootRun             # http://localhost:8080/swagger-ui/index.html
 ```
@@ -26,7 +26,7 @@ cp .env.example .env          # 선택: 없으면 기본값으로 동작
 ```
 머지 → Actions: bootJar → S3(deploy/backend.jar, deploy/.env) → SSM send-command
      → EC2: /usr/local/bin/team4-deploy.sh (S3 에서 받기 → systemd 재시작 → 헬스 체크)
-사용자 → Caddy (https://niturnnaeturn.duckdns.org :443) → localhost:8080 (Spring Boot) → RDS(MySQL) / Redis(localhost:6379)
+사용자 → Caddy (https://niturnnaeturn.duckdns.org :443) → localhost:8080 (Spring Boot) → RDS(MySQL)
 ```
 
 서버 세팅, Secrets, HTTPS, 디버깅은 [docs/deploy.md](docs/deploy.md).

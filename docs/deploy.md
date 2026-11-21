@@ -9,7 +9,6 @@
 | 공개 주소 | `https://niturnnaeturn.duckdns.org` (DuckDNS → 서버 IP, Caddy 가 Let's Encrypt 인증서 자동 발급·갱신) |
 | 서버 IP | 자동 할당 공인 IP (**탄력적 IP 아님**). 인스턴스를 *중지 → 시작* 하면 IP 가 바뀐다 → DuckDNS 의 IP 도 바꿔야 한다. 재부팅(reboot)은 괜찮다 ([ADR 0004](adr/0004-no-elastic-ip.md)) |
 | DB | RDS MySQL. 데이터베이스는 앱이 처음 뜰 때 자동 생성 (`createDatabaseIfNotExist=true`) |
-| Redis | EC2 안에 설치 (`redis-server`, `localhost:6379` 전용, 외부 비공개) ([ADR 0003](adr/0003-redis-on-ec2.md)) |
 | 서버 접속 | Session Manager (SSM). 배포도 SSM 으로 한다 ([ADR 0001](adr/0001-ssm-instead-of-ssh.md)) |
 | 보안 그룹 인바운드 | `80`, `443` (0.0.0.0/0) 만. `22`(SSH)는 2026-11-22 에 닫았다 (접속·배포 모두 SSM) |
 
@@ -88,7 +87,7 @@ main 에 머지(push) → .github/workflows/deploy.yml
 
 ### 2. 서버 1회 세팅 (`scripts/ec2-setup.sh`)
 
-설치되는 것: Java 21, Redis(`localhost:6379`), AWS CLI, 앱 서비스(`team4-backend`, 유저 `team4`, 경로 `/opt/team4-backend`), 배포 스크립트(`/usr/local/bin/team4-deploy.sh`), Caddy.
+설치되는 것: Java 21, AWS CLI, 앱 서비스(`team4-backend`, 유저 `team4`, 경로 `/opt/team4-backend`), 배포 스크립트(`/usr/local/bin/team4-deploy.sh`), Caddy.
 여러 번 실행해도 안전하다. 다시 실행해도 앱 서비스, `app.jar`, `.env` 는 건드리지 않는다.
 
 1. `scripts/ec2-setup.sh` 를 버킷의 `deploy/` 에 업로드한다 (비공개 저장소라 서버가 GitHub 에서 직접 받을 수 없다).
@@ -134,7 +133,6 @@ DB_PASSWORD=<DB 비밀번호>
 - `export`, 따옴표, `<>` 없이 `KEY=value` 로만 적는다. `DB_PORT` 는 생략하면 3306.
 - `DB_NAME` 은 RDS **식별자가 아니라** 그 안의 데이터베이스(스키마) 이름이다.
 - 데이터베이스 자동 생성에는 CREATE 권한이 있는 계정(마스터 계정 등)이 필요하다.
-- Redis 는 Spring 기본값(`localhost:6379`)을 쓰므로 환경변수가 필요 없다.
 
 ### 4. 첫 배포
 
@@ -154,7 +152,7 @@ Actions → Deploy to EC2 → Run workflow (또는 `main` 에 머지).
 
 ## 서버 구성 변경을 반영할 때
 
-`scripts/ec2-setup.sh` 를 바꿨다면(예: Redis 추가) 서버에서 다시 실행해야 반영된다. 배포(`deploy.yml`)는 스크립트를 다시 실행하지 않는다.
+`scripts/ec2-setup.sh` 를 바꿨다면 서버에서 다시 실행해야 반영된다. 배포(`deploy.yml`)는 스크립트를 다시 실행하지 않는다.
 **Setup HTTPS 워크플로를 같은 도메인으로 실행**하면 `main` 의 최신 `ec2-setup.sh` 가 서버에 적용된다.
 
 ## 확인 / 디버깅 (Session Manager)
@@ -163,9 +161,8 @@ Actions → Deploy to EC2 → Run workflow (또는 `main` 에 머지).
 sudo journalctl -u team4-backend -f        # 앱 실시간 로그
 sudo journalctl -u team4-backend -n 200    # 앱 최근 로그
 sudo journalctl -u caddy -f                # Caddy 로그 (인증서 발급 실패 원인도 여기)
-sudo systemctl status team4-backend caddy redis-server
+sudo systemctl status team4-backend caddy
 sudo systemctl restart team4-backend
 curl localhost:8080/api/v1/health          # 앱 직접 헬스 체크
-redis-cli ping                             # Redis (PONG)
 cat /etc/caddy/Caddyfile                   # 현재 적용된 도메인
 ```
