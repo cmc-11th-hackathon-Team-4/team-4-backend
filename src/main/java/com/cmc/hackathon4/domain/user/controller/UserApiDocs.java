@@ -1,7 +1,9 @@
 package com.cmc.hackathon4.domain.user.controller;
 
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
+import com.cmc.hackathon4.domain.user.dto.UserMeResponse;
 import com.cmc.hackathon4.domain.user.dto.UserResponse;
+import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,5 +16,10 @@ public interface UserApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "요청 값 검증 실패 (COMMON-400)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 프로필이 등록된 기기 (USER-409)")
 	ApiResponse<UserResponse> create(UserCreateRequest request);
+
+	@Operation(summary = "내 정보 + 소속 집 조회", description = "앱 실행 시 첫 분기에 호출한다. 소속 집이 없으면 house 는 null 이다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 X-Device-Id (USER-404)")
+	ApiResponse<UserMeResponse> getMe(User user);
 
 }
