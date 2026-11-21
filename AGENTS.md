@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/testitem` 이 계층 5개를 모두 갖춘 형태, `global/`).
+Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 먼저 보고 따른다 (예시: `domain/testitem` 이 하위 패키지 6개를 모두 갖춘 형태, `global/`).
 구성·흐름은 `docs/architecture.md`, 로컬 실행은 `docs/local-dev.md`, 배포는 `docs/deploy.md`, 결정 이유는 `docs/adr/`.
 
 ## 필수
@@ -25,6 +25,7 @@ Spring Boot 4 / Java 21 / Lombok / JPA + MySQL / Redis. 기존 코드 패턴을 
   | `service/` | `XxxService` |
   | `repository/` | `XxxRepository` |
   | `entity/` | 엔티티 |
+  | `converter/` | `XxxConverter` (요청 DTO → Entity, Entity → 응답 DTO) |
   | `dto/` | `XxxCreateRequest`, `XxxUpdateRequest`, `XxxResponse` 등 record |
 
 - 도메인명은 영어 소문자 (예: `user`, `testitem`). `global/` 에는 둘 이상의 도메인이 쓰는 것만 둔다.
@@ -36,6 +37,7 @@ com/cmc/hackathon4/
 │   ├── service/      XxxService
 │   ├── repository/   XxxRepository
 │   ├── entity/       Xxx
+│   ├── converter/    XxxConverter
 │   └── dto/          XxxCreateRequest, XxxUpdateRequest, XxxResponse
 └── global/           config/, entity/, exception/, response/
 ```
@@ -45,7 +47,8 @@ com/cmc/hackathon4/
 - URL: `/api/v1/{복수형-kebab}`. 응답은 항상 `ApiResponse.ok(...)`.
 
 ## DTO·Entity
-- DTO 는 `record`. 변환은 `XxxResponse.from(entity)`, Converter 클래스 X. Entity 를 응답으로 반환 X.
+- DTO 는 `record`. Entity 를 응답으로 반환 X.
+- 변환은 `converter/XxxConverter` (static 메서드만 있는 `final` 클래스, private 생성자): `toEntity(요청 DTO)`, `toResponse(entity)`. DTO·Entity 에 변환 메서드(`from` 등)를 두지 않는다. 기존 Entity 의 값 변경은 Entity 의 의도 드러나는 메서드로 한다.
 - Entity: `BaseTimeEntity` 상속, `@Getter` + `@NoArgsConstructor(access = PROTECTED)`. `@Setter`/`@Data` 금지, 변경은 의도 드러나는 메서드로.
 - `@ManyToOne`/`@OneToOne` 은 `LAZY`, 양방향은 꼭 필요할 때만, 목록 N+1 은 fetch join / `@EntityGraph`.
 - enum 은 `EnumType.STRING`, 시간은 `Instant`(UTC), ID 는 `Long` + `IDENTITY`. 스키마는 `ddl-auto: update` (Flyway X).
@@ -63,7 +66,7 @@ com/cmc/hackathon4/
 ## 변경 시 함께 수정할 곳
 | 변경 | 함께 수정 |
 | --- | --- |
-| 새 도메인 | `domain/{도메인}/{controller,service,repository,entity,dto}/` 클래스들, 필요하면 `ErrorCode` (`{도메인}-{상태}` 형식) |
+| 새 도메인 | `domain/{도메인}/{controller,service,repository,entity,converter,dto}/` 클래스들, 필요하면 `ErrorCode` (`{도메인}-{상태}` 형식) |
 | 운영 환경변수 추가 | `application-prod.yml` + GitHub Secret `APP_ENV` + `docs/deploy.md` 의 APP_ENV 예시 |
 | 로컬 환경변수 추가 | `application-local.yml` + `.env.example` + `docs/local-dev.md` |
 | 인프라 구성요소 추가 (예: Redis) | `build.gradle`, `docker-compose.yml`, `application-local.yml`, `scripts/ec2-setup.sh`(+ 서버 재실행), `docs/`, ADR 추가 |
