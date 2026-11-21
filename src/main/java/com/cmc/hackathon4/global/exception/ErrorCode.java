@@ -54,6 +54,7 @@ public enum ErrorCode {
 	ASSIGNMENT_ALREADY_DONE(HttpStatus.CONFLICT, "ASSIGNMENT-409", "이미 완료된 짐입니다."),
 	ASSIGNMENT_REQUEST_PENDING(HttpStatus.CONFLICT, "ASSIGNMENT-409-1", "이미 부탁 중인 짐입니다."),
 	ASSIGNMENT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "ASSIGNMENT-409-2", "한 사람이 가질 수 있는 짐은 최대 5개입니다."),
+	ASSIGNMENT_RELIEVE_BACK(HttpStatus.CONFLICT, "ASSIGNMENT-409-3", "내 손을 떠난 짐은 덜어가기로 다시 가져올 수 없습니다."),
 
 	// 짐 이동
 	TRANSFER_NOT_FOUND(HttpStatus.NOT_FOUND, "TRANSFER-404", "요청을 찾을 수 없습니다."),

@@ -43,7 +43,10 @@ public class TransferService {
 	private final NotificationService notificationService;
 	private final NotificationRepository notificationRepository;
 
-	/** 덜어가기(#20). 같은 집 구성원이면 누구나 상대의 TODO 짐을 즉시 내 것으로 만든다. */
+	/**
+	 * 덜어가기(#20). 같은 집 구성원이면 누구나 상대의 TODO 짐을 즉시 내 것으로 만든다. 단, 내 손을 떠난 짐(내가 최초 담당자이거나, 이 짐을 덜어가기·부탁으로 넘긴 적이
+	 * 있는 짐)은 덜어가기로 되가져올 수 없다. 덜어가기를 주고받아 배려 순위·하트를 부풀리는 것을 막는다.
+	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferRelieveResponse relieve(Long userId, Long assignmentId) {
 		User me = getUser(userId);
@@ -52,6 +55,10 @@ public class TransferService {
 		houseMemberValidator.getMember(assignment.getPeriod().getHouse().getId(), userId);
 		if (assignment.getAssignee().getId().equals(userId)) {
 			throw new BusinessException(ErrorCode.ASSIGNMENT_OWN_RELIEVE);
+		}
+		if (assignment.getOriginalAssignee().getId().equals(userId) || transferRepository
+				.existsByAssignmentIdAndFromUserIdAndStatus(assignmentId, userId, TransferStatus.ACCEPTED)) {
+			throw new BusinessException(ErrorCode.ASSIGNMENT_RELIEVE_BACK);
 		}
 		assignmentValidator.validateOpen(assignment);
 		if (transferRepository.existsByAssignmentIdAndStatus(assignmentId, TransferStatus.PENDING)) {
@@ -121,7 +128,7 @@ public class TransferService {
 	/**
 	 * 부탁 취소·덜어가기 되돌리기(#24). REQUEST 는 요청자(fromUser)가 PENDING 일 때만 취소한다.
 	 * RELIEVE 는 가져간 사람(toUser)이 되돌리며, 짐이 아직 내 TODO 일 때만 가능하고 짐은 원래 담당자에게 돌아간다.
-	 * 되돌린 이동은 CANCELED 로 남긴다.
+	 * 되돌린 이동은 CANCELED 로 남긴다. 이미 하트를 받은 덜어가기라면 하트도 무효로 하고, 가져간 사람의 HEART_RECEIVED 알림을 읽음 처리한다.
 	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void cancel(Long userId, Long transferId) {
@@ -160,9 +167,14 @@ public class TransferService {
 		// 짐이 돌아왔으니 원래 담당자의 "덜어갔어요" 알림은 더 이상 유효하지 않다 (하트도 보낼 수 없다)
 		notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(transfer.getFromUser().getId(),
 				transferId, NotificationType.CHORE_RELIEVED).forEach(notification -> notification.markRead(now));
+		if (transfer.isHearted()) {
+			transfer.revokeHeart();
+			notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(userId, transferId,
+					NotificationType.HEART_RECEIVED).forEach(notification -> notification.markRead(now));
+		}
 	}
 
-	/** 하트로 고마움 전하기(#25). RELIEVE 이동에만, 원래 담당자(fromUser)만, 한 번만 보낼 수 있다. */
+	/** 하트로 고마움 전하기(#25). RELIEVE 이동에만, 원래 담당자(fromUser)만, 한 번만, 진행 중인 기간에만 보낼 수 있다. */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public TransferHeartResponse heart(Long userId, Long transferId) {
 		User me = getUser(userId);
@@ -175,6 +187,7 @@ public class TransferService {
 				|| transfer.isHearted()) {
 			throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
 		}
+		assignmentValidator.validatePeriodActive(transfer.getAssignment().getPeriod());
 		Instant now = Instant.now();
 		transfer.heart(now);
 		notificationService.send(transfer.getToUser(), me, transfer, NotificationType.HEART_RECEIVED,
