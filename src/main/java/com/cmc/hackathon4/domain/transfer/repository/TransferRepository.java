@@ -28,4 +28,7 @@ public interface TransferRepository extends JpaRepository<Transfer, Long> {
 	List<Transfer> findAllByPeriodIdAndStatus(@Param("periodId") Long periodId,
 			@Param("status") TransferStatus status);
 
+	/** 내가 받은 하트 수: 내가 덜어간(toUser) 이동 중 하트가 찍힌 것 */
+	long countByToUserIdAndHeartedAtIsNotNull(Long toUserId);
+
 }
