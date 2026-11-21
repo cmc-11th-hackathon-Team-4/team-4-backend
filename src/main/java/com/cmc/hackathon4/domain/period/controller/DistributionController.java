@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.period.controller;
 
 import com.cmc.hackathon4.domain.period.dto.DistributionCreateRequest;
 import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
+import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
 import com.cmc.hackathon4.domain.period.service.DistributionService;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
@@ -39,6 +40,12 @@ public class DistributionController implements DistributionApiDocs {
 	@PostMapping("/distribution/shuffle")
 	public ApiResponse<DistributionResponse> shuffle(@CurrentUser User user, @PathVariable Long houseId) {
 		return ApiResponse.ok(distributionService.shuffle(houseId, user.getId()));
+	}
+
+	@Override
+	@PostMapping("/start")
+	public ApiResponse<DistributionStartResponse> start(@CurrentUser User user, @PathVariable Long houseId) {
+		return ApiResponse.ok(distributionService.start(houseId, user.getId()));
 	}
 
 }

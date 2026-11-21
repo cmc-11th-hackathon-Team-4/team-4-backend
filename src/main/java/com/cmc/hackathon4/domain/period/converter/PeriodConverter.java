@@ -7,6 +7,7 @@ import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
+import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -20,6 +21,10 @@ public final class PeriodConverter {
 	public static PeriodResponse toPeriodResponse(Period period) {
 		return new PeriodResponse(period.getId(), period.getRound(), period.getStartDate(), period.getEndDate(),
 				period.getStatus());
+	}
+
+	public static DistributionStartResponse toStartResponse(House house, Period period) {
+		return new DistributionStartResponse(house.getId(), house.getStatus(), toPeriodResponse(period));
 	}
 
 	/** 구성원별 배분 결과. 구성원은 참여 순서, 짐은 집안일 ID 순이다. assignee 와 chore 를 읽는다. */

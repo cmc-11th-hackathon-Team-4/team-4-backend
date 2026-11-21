@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.period.controller;
 
 import com.cmc.hackathon4.domain.period.dto.DistributionCreateRequest;
 import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
+import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,5 +34,12 @@ public interface DistributionApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404)")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 확인 단계가 아님 (HOUSE-409-3)")
 	ApiResponse<DistributionResponse> shuffle(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
+
+	@Operation(summary = "배분 확정·우리 집 시작하기", description = "방장이 저장된 배분을 확정한다. 기간은 READY → ACTIVE, 집은 DISTRIBUTING → ACTIVE 가 되고 방장 제외 전원에게 PERIOD_STARTED 알림이 간다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "시작 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 확인 단계가 아님 (HOUSE-409-3)")
+	ApiResponse<DistributionStartResponse> start(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
 }

@@ -16,9 +16,12 @@ import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
+import com.cmc.hackathon4.domain.notification.entity.NotificationType;
+import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
 import com.cmc.hackathon4.domain.period.dto.DistributionCreateRequest;
 import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
+import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
@@ -44,6 +47,7 @@ public class DistributionService {
 	private final PeriodRepository periodRepository;
 	private final AssignmentRepository assignmentRepository;
 	private final ChoreDistributor choreDistributor;
+	private final NotificationService notificationService;
 
 	/**
 	 * 결산 주기·시작일을 저장하고 1회차 기간(READY)과 랜덤 배분을 만든다. 이미 DISTRIBUTING 이면 주기·날짜를 갱신하고 배분을 새로 만든다.
@@ -101,6 +105,25 @@ public class DistributionService {
 		// 영속성 컨텍스트가 비워지므로 이 뒤에 엔티티를 다시 조회한다.
 		assignmentRepository.deleteAllByPeriodId(periodId);
 		return createDistribution(getHouse(houseId), getReadyPeriod(houseId), userId);
+	}
+
+	/** 배분을 확정한다. 기간 READY → ACTIVE, 집 DISTRIBUTING → ACTIVE, 방장 제외 전원에게 PERIOD_STARTED 알림. */
+	@Transactional
+	public DistributionStartResponse start(Long houseId, Long userId) {
+		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
+		House house = getDistributingHouse(houseId);
+		Period period = getReadyPeriod(houseId);
+		period.start();
+		house.activate();
+
+		List<User> receivers = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId)
+				.stream()
+				.map(HouseMember::getUser)
+				.filter(user -> !user.getId().equals(userId))
+				.toList();
+		notificationService.sendAll(receivers, owner.getUser(), null, NotificationType.PERIOD_STARTED,
+				"새 집안일이 배분됐어요");
+		return PeriodConverter.toStartResponse(house, period);
 	}
 
 	private House getDistributingHouse(Long houseId) {
