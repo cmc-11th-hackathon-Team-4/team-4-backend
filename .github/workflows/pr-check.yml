@@ -1,0 +1,25 @@
+# PR 마다 문서와 코드가 어긋나지 않았는지 검사한다 (scripts/check-docs.sh).
+# 배포는 하지 않는다. AWS 권한·Secrets 도 쓰지 않는다.
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+# 같은 PR 에 새 커밋이 오면 이전 실행은 취소한다
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check docs match code
+        run: bash scripts/check-docs.sh

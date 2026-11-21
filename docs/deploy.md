@@ -31,7 +31,7 @@ main 에 머지(push) → .github/workflows/deploy.yml
 
 - **롤백 경로가 없다.** 배포 시 `app.jar` 를 덮어써서 이전 jar 가 남지 않는다. 되돌리려면 이전 커밋을 되돌리는(revert) PR 을 머지해 다시 배포한다.
 - 서버 1대라 재시작하는 동안(수 초~수십 초) 요청이 실패한다.
-- CI 에서 테스트를 돌리지 않는다 (`-x test`). PR 단계 CI 도 아직 없다.
+- CI 에서 빌드·테스트를 검증하지 않는다. 배포는 `-x test` 이고, PR 단계(`pr-check.yml`)에서는 문서 검사만 한다.
 - 스키마는 `ddl-auto: update` 라 컬럼 이름 변경·삭제는 반영되지 않는다 ([ADR 0005](adr/0005-ddl-auto-update.md)).
 
 ## 처음부터 다시 구축할 때

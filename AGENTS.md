@@ -73,7 +73,7 @@ com/cmc/hackathon4/
 | 프론트 주소 추가 | `application.yml` 의 `app.cors.allowed-origin-patterns` |
 | `[TEST]` 임시 도메인 삭제 | 도메인 패키지 + `ErrorCode` 항목. DB 테이블은 `ddl-auto` 가 지우지 않으므로 직접 삭제 |
 
-문서 수정 후 `bash scripts/check-docs.sh` 로 문서와 코드가 맞는지 확인한다.
+문서 수정 후 `bash scripts/check-docs.sh` 로 문서와 코드가 맞는지 확인한다. PR 을 올리면 `PR Check` 워크플로가 같은 검사를 자동으로 돌린다.
 
 ## 스타일·Git
 - 포맷은 Spotless 가 담당: `./gradlew spotlessApply`.
