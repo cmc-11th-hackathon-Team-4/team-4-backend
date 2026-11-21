@@ -27,4 +27,11 @@ public interface DistributionApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 확인 단계가 아님 (HOUSE-409-3)")
 	ApiResponse<DistributionResponse> get(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
+	@Operation(summary = "랜덤 배분 다시 섞기", description = "방장이 READY 기간의 배분을 지우고 랜덤 배분을 다시 만든다. DISTRIBUTING 일 때만 가능하다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "다시 섞기 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 확인 단계가 아님 (HOUSE-409-3)")
+	ApiResponse<DistributionResponse> shuffle(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
+
 }

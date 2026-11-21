@@ -91,6 +91,18 @@ public class DistributionService {
 		return PeriodConverter.toDistributionResponse(house, period, members, assignments, userId);
 	}
 
+	/** READY 기간의 배분을 지우고 랜덤 배분을 다시 만든다. 방장만, DISTRIBUTING 일 때만 가능. */
+	@Transactional
+	public DistributionResponse shuffle(Long houseId, Long userId) {
+		houseMemberValidator.getOwner(houseId, userId);
+		getDistributingHouse(houseId);
+		Long periodId = getReadyPeriod(houseId).getId();
+
+		// 영속성 컨텍스트가 비워지므로 이 뒤에 엔티티를 다시 조회한다.
+		assignmentRepository.deleteAllByPeriodId(periodId);
+		return createDistribution(getHouse(houseId), getReadyPeriod(houseId), userId);
+	}
+
 	private House getDistributingHouse(Long houseId) {
 		House house = getHouse(houseId);
 		if (house.getStatus() != HouseStatus.DISTRIBUTING) {

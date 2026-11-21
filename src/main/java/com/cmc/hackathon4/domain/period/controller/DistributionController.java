@@ -35,4 +35,10 @@ public class DistributionController implements DistributionApiDocs {
 		return ApiResponse.ok(distributionService.get(houseId, user.getId()));
 	}
 
+	@Override
+	@PostMapping("/distribution/shuffle")
+	public ApiResponse<DistributionResponse> shuffle(@CurrentUser User user, @PathVariable Long houseId) {
+		return ApiResponse.ok(distributionService.shuffle(houseId, user.getId()));
+	}
+
 }
