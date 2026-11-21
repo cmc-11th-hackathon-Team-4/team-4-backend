@@ -15,7 +15,6 @@ import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
-import com.cmc.hackathon4.domain.house.service.HouseLocker;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
@@ -44,7 +43,6 @@ public class DistributionService {
 
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseRepository houseRepository;
-	private final HouseLocker houseLocker;
 	private final HouseMemberRepository houseMemberRepository;
 	private final ChoreRepository choreRepository;
 	private final PeriodRepository periodRepository;
@@ -58,7 +56,7 @@ public class DistributionService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionResponse create(Long houseId, Long userId, DistributionCreateRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
-		House house = houseLocker.lock(houseId);
+		House house = houseMemberValidator.lockHouse(houseId);
 		if (house.getStatus() == HouseStatus.ACTIVE) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);
 		}
@@ -102,7 +100,7 @@ public class DistributionService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionResponse shuffle(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
-		requireDistributing(houseLocker.lock(houseId));
+		requireDistributing(houseMemberValidator.lockHouse(houseId));
 		Long periodId = getReadyPeriod(houseId).getId();
 
 		// 영속성 컨텍스트가 비워지므로 이 뒤에 엔티티를 다시 조회한다.
@@ -117,7 +115,7 @@ public class DistributionService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionStartResponse start(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
-		House house = requireDistributing(houseLocker.lock(houseId));
+		House house = requireDistributing(houseMemberValidator.lockHouse(houseId));
 		Period period = getReadyPeriod(houseId);
 		LocalDate today = LocalDate.now(KST);
 		if (period.getStartDate().isBefore(today)) {

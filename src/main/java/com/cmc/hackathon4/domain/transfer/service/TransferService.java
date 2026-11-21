@@ -6,7 +6,6 @@ import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
 import com.cmc.hackathon4.domain.assignment.service.AssignmentValidator;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
-import com.cmc.hackathon4.domain.house.service.HouseLocker;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
@@ -40,7 +39,6 @@ public class TransferService {
 	private final UserRepository userRepository;
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
-	private final HouseLocker houseLocker;
 	private final AssignmentValidator assignmentValidator;
 	private final NotificationService notificationService;
 	private final NotificationRepository notificationRepository;
@@ -203,12 +201,12 @@ public class TransferService {
 	 * 같은 집의 짐·이동을 바꾸는 요청이 겹치지 않도록 집 행을 잠근다. 짐이나 이동 엔티티를 읽기 전에 불러야 잠금을 기다린 뒤의 최신 상태를 읽는다.
 	 */
 	private void lockHouseOfAssignment(Long assignmentId) {
-		houseLocker.lock(assignmentRepository.findHouseIdById(assignmentId)
+		houseMemberValidator.lockHouse(assignmentRepository.findHouseIdById(assignmentId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND)));
 	}
 
 	private void lockHouseOfTransfer(Long transferId) {
-		houseLocker.lock(transferRepository.findHouseIdById(transferId)
+		houseMemberValidator.lockHouse(transferRepository.findHouseIdById(transferId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.TRANSFER_NOT_FOUND)));
 	}
 
