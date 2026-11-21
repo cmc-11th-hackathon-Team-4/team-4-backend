@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public interface UserApiDocs {
 
 	@Operation(summary = "프로필 만들기", description = "앱 최초 실행 시 호출한다. 헤더 없이 본문의 deviceId 로 기기를 등록하며 기분은 RELAXED 로 시작한다.")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "등록 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "등록 성공")
 	@ApiErrorCodes({ ErrorCode.USER_ALREADY_REGISTERED })
 	ApiResponse<UserResponse> create(UserCreateRequest request);
 

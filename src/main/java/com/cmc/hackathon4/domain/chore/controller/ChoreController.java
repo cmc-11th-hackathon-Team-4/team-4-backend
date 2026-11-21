@@ -11,6 +11,7 @@ import com.cmc.hackathon4.global.auth.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -47,6 +49,7 @@ public class ChoreController implements ChoreApiDocs {
 	}
 
 	@Override
+	@ResponseStatus(HttpStatus.CREATED)
 	@PostMapping("/houses/{houseId}/chores")
 	public ApiResponse<ChoreCreateResponse> createChore(@CurrentUser User user, @PathVariable Long houseId,
 			@Valid @RequestBody ChoreCreateRequest request) {

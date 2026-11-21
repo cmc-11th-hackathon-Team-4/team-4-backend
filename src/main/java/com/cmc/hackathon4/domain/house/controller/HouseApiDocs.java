@@ -21,7 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public interface HouseApiDocs {
 
 	@Operation(summary = "집 만들기", description = "만든 사람이 방장(OWNER)이 되고 집은 WAITING 으로 시작한다. 초대 코드는 영대문자+숫자 6자리.")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_ALREADY_JOINED })
 	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반 또는 공백만 입력")
 	ApiResponse<HouseCreateResponse> create(User user, HouseCreateRequest request);

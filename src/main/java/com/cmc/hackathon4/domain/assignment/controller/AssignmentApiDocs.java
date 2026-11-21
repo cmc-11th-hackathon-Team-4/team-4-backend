@@ -30,7 +30,7 @@ public interface AssignmentApiDocs {
 			@Parameter(description = "덜어갈 짐 ID", example = "5") Long assignmentId);
 
 	@Operation(summary = "짐 올리기 부탁", description = "내 TODO 짐을 같은 집의 다른 구성원에게 부탁한다. PENDING transfer 가 만들어지고 받는 사람의 홈 receivedRequests 에 나타난다. 짐당 PENDING 은 하나만 가능하다.")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "부탁 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "부탁 성공")
 	@ApiErrorCodes({ ErrorCode.ASSIGNMENT_NOT_MINE, ErrorCode.ASSIGNMENT_NOT_FOUND, ErrorCode.ASSIGNMENT_ALREADY_DONE, ErrorCode.ASSIGNMENT_REQUEST_PENDING, ErrorCode.PERIOD_ENDED, ErrorCode.PERIOD_NOT_STARTED })
 	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "toUserId 가 없거나 본인이거나 같은 집 구성원이 아님")
 	ApiResponse<TransferStatusResponse> request(User user,
