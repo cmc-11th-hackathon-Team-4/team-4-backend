@@ -3,6 +3,8 @@ package com.cmc.hackathon4.domain.period.service;
 import java.time.Instant;
 import java.util.List;
 
+import com.cmc.hackathon4.domain.assignment.entity.Assignment;
+import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
@@ -12,9 +14,11 @@ import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
+import com.cmc.hackathon4.domain.period.dto.SettlementResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.transfer.entity.Transfer;
 import com.cmc.hackathon4.domain.transfer.entity.TransferStatus;
 import com.cmc.hackathon4.domain.transfer.repository.TransferRepository;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -35,6 +39,7 @@ public class PeriodService {
 	private final PeriodRepository periodRepository;
 	private final NotificationService notificationService;
 	private final TransferRepository transferRepository;
+	private final AssignmentRepository assignmentRepository;
 
 	/** 진행 중인 기간의 결산일을 days 만큼 늦추고 방장 제외 전원에게 PERIOD_EXTENDED 알림을 보낸다. */
 	@Transactional
@@ -68,6 +73,32 @@ public class PeriodService {
 				.toList();
 		notificationService.sendAll(everyone, null, null, NotificationType.PERIOD_ENDED, "이번 주 결산이 도착했어요");
 		return PeriodConverter.toEndResponse(period);
+	}
+
+	/** 종료된 기간의 결산 상세. 그 집의 구성원만, ENDED 기간만 조회할 수 있다. */
+	public SettlementResponse getSettlement(Long periodId, Long userId) {
+		Period period = getPeriod(periodId);
+		Long houseId = period.getHouse().getId();
+		houseMemberValidator.getMember(houseId, userId);
+		if (!period.isEnded()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_ENDED);
+		}
+		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
+		List<Assignment> assignments = assignmentRepository.findAllByPeriodIdOrderByIdAsc(periodId);
+		List<Transfer> accepted = transferRepository.findAllByPeriodIdAndStatus(periodId, TransferStatus.ACCEPTED);
+		return PeriodConverter.toSettlementResponse(period, members, assignments, accepted, userId,
+				isNextPeriodStarted(period));
+	}
+
+	private Period getPeriod(Long periodId) {
+		return periodRepository.findById(periodId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
+	}
+
+	/** 이 기간보다 뒤 회차 중 READY 가 아닌(시작된) 기간이 있는지 */
+	private boolean isNextPeriodStarted(Period period) {
+		return periodRepository.findFirstByHouseIdAndStatusNotOrderByRoundDesc(period.getHouse().getId(),
+				PeriodStatus.READY).filter(latest -> latest.getRound() > period.getRound()).isPresent();
 	}
 
 	private Period getActivePeriod(Long houseId) {
