@@ -7,6 +7,7 @@ import java.util.List;
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.entity.AssignmentStatus;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
+import com.cmc.hackathon4.domain.assignment.service.AssignmentValidator;
 import com.cmc.hackathon4.domain.chore.converter.ChoreConverter;
 import com.cmc.hackathon4.domain.chore.dto.ChoreBulkSaveRequest;
 import com.cmc.hackathon4.domain.chore.dto.ChoreCreateRequest;
@@ -17,7 +18,7 @@ import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
-import com.cmc.hackathon4.domain.house.repository.HouseRepository;
+import com.cmc.hackathon4.domain.house.service.HouseLocker;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
@@ -40,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChoreService {
 
 	private static final int MAX_CHORES_PER_HOUSE = 10;
-	private static final int MAX_ASSIGNMENTS_PER_USER = 5;
 
 	/** 집안일 고르기 화면의 선택지. DB 가 아니라 서버 상수다. */
 	private static final List<String> PRESETS = List.of("빨래 널기", "설거지", "분리수거", "욕실 청소", "세탁기 돌리기", "빨래 개기",
@@ -48,7 +48,8 @@ public class ChoreService {
 
 	private final ChoreRepository choreRepository;
 	private final TransferRepository transferRepository;
-	private final HouseRepository houseRepository;
+	private final HouseLocker houseLocker;
+	private final AssignmentValidator assignmentValidator;
 	private final PeriodRepository periodRepository;
 	private final AssignmentRepository assignmentRepository;
 	private final UserRepository userRepository;
@@ -76,8 +77,7 @@ public class ChoreService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreCreateResponse createChore(Long houseId, Long userId, ChoreCreateRequest request) {
 		houseMemberValidator.getMember(houseId, userId);
-		House house = houseRepository.findByIdForUpdate(houseId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+		House house = houseLocker.lock(houseId);
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
@@ -112,10 +112,7 @@ public class ChoreService {
 				AssignmentStatus.TODO) >= MAX_CHORES_PER_HOUSE) {
 			throw new BusinessException(ErrorCode.CHORE_LIMIT_EXCEEDED);
 		}
-		if (assignmentRepository.countByPeriodIdAndAssigneeIdAndStatusAndDeletedAtIsNull(period.getId(), userId,
-				AssignmentStatus.TODO) >= MAX_ASSIGNMENTS_PER_USER) {
-			throw new BusinessException(ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED);
-		}
+		assignmentValidator.validateTodoLimit(period.getId(), userId);
 		User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		Chore chore = choreRepository.save(ChoreConverter.toTemporaryEntity(house, name));
 		Assignment assignment = assignmentRepository.save(new Assignment(period, chore, user, false));
@@ -129,8 +126,7 @@ public class ChoreService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void deleteChore(Long houseId, Long userId, Long choreId) {
 		houseMemberValidator.getMember(houseId, userId);
-		House house = houseRepository.findByIdForUpdate(houseId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+		House house = houseLocker.lock(houseId);
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
@@ -161,8 +157,7 @@ public class ChoreService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreListResponse replaceChores(Long houseId, Long userId, ChoreBulkSaveRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
-		House house = houseRepository.findByIdForUpdate(houseId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+		House house = houseLocker.lock(houseId);
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}

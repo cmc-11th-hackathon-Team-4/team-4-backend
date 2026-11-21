@@ -8,11 +8,12 @@ import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseMemberResponse;
-import com.cmc.hackathon4.domain.house.dto.HousePeriodResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
+import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
+import com.cmc.hackathon4.domain.period.dto.PeriodResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 
 public final class HouseConverter {
@@ -55,9 +56,7 @@ public final class HouseConverter {
 	public static HouseDetailResponse toDetailResponse(House house, List<HouseMember> members, Long myUserId,
 			int choreCount, Period currentPeriod) {
 		List<HouseMemberResponse> memberResponses = members.stream().map(m -> toMemberResponse(m, myUserId)).toList();
-		HousePeriodResponse period = currentPeriod == null ? null
-				: new HousePeriodResponse(currentPeriod.getId(), currentPeriod.getRound(),
-						currentPeriod.getStartDate(), currentPeriod.getEndDate(), currentPeriod.getStatus());
+		PeriodResponse period = currentPeriod == null ? null : PeriodConverter.toPeriodResponse(currentPeriod);
 		return new HouseDetailResponse(house.getId(), house.getName(), house.getInviteCode(), house.getStatus(),
 				house.getSettlementCycle(), members.size(), House.MAX_MEMBERS, choreCount, memberResponses, period);
 	}
