@@ -1,5 +1,7 @@
 package com.cmc.hackathon4.domain.period.controller;
 
+import com.cmc.hackathon4.domain.period.dto.CarryOverRequest;
+import com.cmc.hackathon4.domain.period.dto.CarryOverResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
@@ -34,5 +36,14 @@ public interface PeriodApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "아직 종료되지 않은 기간 (PERIOD-409-1)")
 	ApiResponse<SettlementResponse> getSettlement(User user,
 			@Parameter(description = "기간 ID", example = "1") Long periodId);
+
+	@Operation(summary = "못 한 일 이월 선택 저장", description = "내 못 한 일마다 다음 주로 가져갈지(KEEP) 덜어낼지(RELEASE) 한 번에 저장한다. 선택하지 않은 짐은 KEEP 으로 취급한다. READY 인 다음 기간이 이미 있으면 그 배분을 다시 만든다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "저장 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "choices 가 비어 있거나 choice 가 KEEP / RELEASE 가 아님 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "내 TODO 짐이 아님 (ASSIGNMENT-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "기간 없음 (PERIOD-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "아직 종료되지 않은 기간 (PERIOD-409-1) / 이미 다음 기간이 시작됨 (PERIOD-409-2)")
+	ApiResponse<CarryOverResponse> saveCarryOvers(User user,
+			@Parameter(description = "종료된 기간 ID", example = "1") Long periodId, CarryOverRequest request);
 
 }

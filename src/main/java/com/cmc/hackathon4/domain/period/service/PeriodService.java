@@ -1,16 +1,27 @@
 package com.cmc.hackathon4.domain.period.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
+import com.cmc.hackathon4.domain.assignment.entity.AssignmentStatus;
 import com.cmc.hackathon4.domain.assignment.repository.AssignmentRepository;
+import com.cmc.hackathon4.domain.chore.entity.Chore;
+import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
+import com.cmc.hackathon4.domain.period.dto.CarryOverRequest;
+import com.cmc.hackathon4.domain.period.dto.CarryOverResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
@@ -40,6 +51,8 @@ public class PeriodService {
 	private final NotificationService notificationService;
 	private final TransferRepository transferRepository;
 	private final AssignmentRepository assignmentRepository;
+	private final ChoreRepository choreRepository;
+	private final ChoreDistributor choreDistributor;
 
 	/** 진행 중인 기간의 결산일을 days 만큼 늦추고 방장 제외 전원에게 PERIOD_EXTENDED 알림을 보낸다. */
 	@Transactional
@@ -88,6 +101,75 @@ public class PeriodService {
 		List<Transfer> accepted = transferRepository.findAllByPeriodIdAndStatus(periodId, TransferStatus.ACCEPTED);
 		return PeriodConverter.toSettlementResponse(period, members, assignments, accepted, userId,
 				isNextPeriodStarted(period));
+	}
+
+	/**
+	 * 내 못 한 일의 이월 선택(KEEP/RELEASE)을 저장한다. 기간이 ENDED 이고 다음 기간이 시작되기 전일 때만 가능하며, READY 인 다음 기간이 이미 있으면 그 배분을 새 선택으로 다시 만든다.
+	 */
+	@Transactional
+	public CarryOverResponse saveCarryOvers(Long periodId, Long userId, CarryOverRequest request) {
+		Period period = getPeriod(periodId);
+		Long houseId = period.getHouse().getId();
+		houseMemberValidator.getMember(houseId, userId);
+		if (!period.isEnded()) {
+			throw new BusinessException(ErrorCode.PERIOD_NOT_ENDED);
+		}
+		if (isNextPeriodStarted(period)) {
+			throw new BusinessException(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
+		}
+
+		Map<Long, Assignment> myUndone = assignmentRepository
+				.findAllByPeriodIdAndAssigneeIdAndStatusOrderByIdAsc(periodId, userId, AssignmentStatus.TODO)
+				.stream()
+				.collect(Collectors.toMap(Assignment::getId, Function.identity()));
+		if (request.choices().stream().anyMatch(choice -> !myUndone.containsKey(choice.assignmentId()))) {
+			throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_MINE);
+		}
+		request.choices().forEach(choice -> myUndone.get(choice.assignmentId()).chooseCarry(choice.choice()));
+
+		periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
+				.filter(ready -> ready.getRound() > period.getRound())
+				.ifPresent(ready -> createNextAssignments(houseId, ready.getId(), periodId));
+		return new CarryOverResponse(request.choices());
+	}
+
+	/**
+	 * 다음 기간(READY)의 배분을 지우고 새로 만든다. 직전(ENDED) 기간의 못 한 일 중 KEEP(미선택 포함)은 그 담당자에게 먼저 고정(carriedOver)하고, 나머지 활성
+	 * 집안일은 총 개수가 균등해지도록 랜덤 배분한다. 영속성 컨텍스트가 비워지므로 엔티티를 다시 조회해서 쓴다.
+	 */
+	private List<Assignment> createNextAssignments(Long houseId, Long nextPeriodId, Long endedPeriodId) {
+		assignmentRepository.deleteAllByPeriodId(nextPeriodId);
+
+		Period next = getPeriod(nextPeriodId);
+		List<User> users = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId)
+				.stream()
+				.map(HouseMember::getUser)
+				.toList();
+		Map<Long, User> userById = users.stream().collect(Collectors.toMap(User::getId, Function.identity()));
+		List<Chore> chores = choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId);
+		Set<Long> activeChoreIds = chores.stream().map(Chore::getId).collect(Collectors.toSet());
+
+		List<Assignment> carried = assignmentRepository.findAllByPeriodIdOrderByIdAsc(endedPeriodId)
+				.stream()
+				.filter(Assignment::isKeptForNextPeriod)
+				.filter(a -> activeChoreIds.contains(a.getChore().getId())
+						&& userById.containsKey(a.getAssignee().getId()))
+				.map(a -> new Assignment(next, a.getChore(), userById.get(a.getAssignee().getId()), true))
+				.toList();
+		Set<Long> carriedChoreIds = carried.stream().map(a -> a.getChore().getId()).collect(Collectors.toSet());
+		Map<User, Integer> fixedCounts = new HashMap<>();
+		carried.forEach(a -> fixedCounts.merge(a.getAssignee(), 1, Integer::sum));
+
+		List<Chore> pool = chores.stream().filter(chore -> !carriedChoreIds.contains(chore.getId())).toList();
+		List<Assignment> distributed = choreDistributor.distribute(users, fixedCounts, pool)
+				.entrySet()
+				.stream()
+				.flatMap(entry -> entry.getValue().stream().map(chore -> new Assignment(next, chore, entry.getKey(), false)))
+				.toList();
+
+		List<Assignment> assignments = new ArrayList<>(carried);
+		assignments.addAll(distributed);
+		return assignmentRepository.saveAll(assignments);
 	}
 
 	private Period getPeriod(Long periodId) {

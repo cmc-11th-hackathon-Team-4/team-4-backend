@@ -1,5 +1,7 @@
 package com.cmc.hackathon4.domain.period.controller;
 
+import com.cmc.hackathon4.domain.period.dto.CarryOverRequest;
+import com.cmc.hackathon4.domain.period.dto.CarryOverResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,6 +45,13 @@ public class PeriodController implements PeriodApiDocs {
 	@GetMapping("/periods/{periodId}/settlement")
 	public ApiResponse<SettlementResponse> getSettlement(@CurrentUser User user, @PathVariable Long periodId) {
 		return ApiResponse.ok(periodService.getSettlement(periodId, user.getId()));
+	}
+
+	@Override
+	@PutMapping("/periods/{periodId}/carry-overs")
+	public ApiResponse<CarryOverResponse> saveCarryOvers(@CurrentUser User user, @PathVariable Long periodId,
+			@Valid @RequestBody CarryOverRequest request) {
+		return ApiResponse.ok(periodService.saveCarryOvers(periodId, user.getId(), request));
 	}
 
 }
