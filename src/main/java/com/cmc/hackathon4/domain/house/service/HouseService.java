@@ -46,7 +46,6 @@ public class HouseService {
 	private final ChoreRepository choreRepository;
 	private final PeriodRepository periodRepository;
 	private final HouseMemberValidator houseMemberValidator;
-	private final HouseLocker houseLocker;
 
 	@Transactional
 	public HouseCreateResponse create(Long userId, HouseCreateRequest request) {
@@ -112,7 +111,7 @@ public class HouseService {
 	public HouseUpdateResponse update(Long houseId, Long userId, HouseUpdateRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
 		// 배분 만들기·확정과 겹치지 않도록 집 행을 잠근다.
-		House house = houseLocker.lock(houseId);
+		House house = houseMemberValidator.lockHouse(houseId);
 		if (request.name() != null) {
 			house.rename(request.name().trim());
 		}
@@ -132,7 +131,7 @@ public class HouseService {
 	public void removeMember(Long houseId, Long ownerUserId, Long targetUserId) {
 		houseMemberValidator.getOwner(houseId, ownerUserId);
 		// 동시 참여와 겹치지 않도록 집 행을 잠근다.
-		House house = houseLocker.lock(houseId);
+		House house = houseMemberValidator.lockHouse(houseId);
 		switch (house.getStatus()) {
 			case DISTRIBUTING -> throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 			case ACTIVE -> throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);

@@ -35,10 +35,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
-class HomeServiceTest {
+class HouseQueryServiceTest {
 
 	@Autowired
-	HomeService homeService;
+	HouseQueryService houseQueryService;
 	@Autowired
 	UserRepository userRepository;
 	@Autowired
@@ -90,7 +90,7 @@ class HomeServiceTest {
 	void 집이_ACTIVE_가_아니면_period_는_null_이고_짐은_비어있다() {
 		period(1, PeriodStatus.ACTIVE);
 
-		HomeResponse response = homeService.getHome(house.getId(), me.getId());
+		HomeResponse response = houseQueryService.getHome(house.getId(), me.getId());
 
 		assertThat(response.period()).isNull();
 		assertThat(response.myAssignments()).isEmpty();
@@ -104,7 +104,7 @@ class HomeServiceTest {
 		period(2, PeriodStatus.READY);
 		assignment(active, me, "설거지");
 
-		HomeResponse response = homeService.getHome(house.getId(), me.getId());
+		HomeResponse response = houseQueryService.getHome(house.getId(), me.getId());
 
 		assertThat(response.period().id()).isEqualTo(active.getId());
 		assertThat(response.period().status()).isEqualTo(PeriodStatus.ACTIVE);
@@ -119,7 +119,7 @@ class HomeServiceTest {
 		period(2, PeriodStatus.READY);
 		assignment(ended, me, "설거지");
 
-		HomeResponse response = homeService.getHome(house.getId(), me.getId());
+		HomeResponse response = houseQueryService.getHome(house.getId(), me.getId());
 
 		assertThat(response.period().status()).isEqualTo(PeriodStatus.ENDED);
 		assertThat(response.myAssignments()).isEmpty();
@@ -135,7 +135,7 @@ class HomeServiceTest {
 		assignment(active, other, "분리수거");
 		transferRepository.save(Transfer.request(pending, me, other));
 
-		HomeResponse response = homeService.getHome(house.getId(), me.getId());
+		HomeResponse response = houseQueryService.getHome(house.getId(), me.getId());
 
 		assertThat(response.myAssignments()).hasSize(1);
 		HomeResponse.MyAssignment mine = response.myAssignments().get(0);
@@ -158,7 +158,7 @@ class HomeServiceTest {
 		Transfer done = transferRepository.save(Transfer.request(accepted, other, me));
 		done.accept(java.time.Instant.now());
 
-		HomeResponse response = homeService.getHome(house.getId(), me.getId());
+		HomeResponse response = houseQueryService.getHome(house.getId(), me.getId());
 
 		assertThat(response.receivedRequests()).hasSize(1);
 		assertThat(response.receivedRequests().get(0).transferId()).isEqualTo(pending.getId());
@@ -174,8 +174,8 @@ class HomeServiceTest {
 		Transfer transfer = transferRepository.save(Transfer.relieve(a, me, other, java.time.Instant.now()));
 		notificationService.send(me, other, transfer, NotificationType.CHORE_RELIEVED, "민지가 설거지를 덜어갔어요");
 
-		HomeResponse response = homeService.getHome(house.getId(), me.getId());
-		HomeResponse otherResponse = homeService.getHome(house.getId(), other.getId());
+		HomeResponse response = houseQueryService.getHome(house.getId(), me.getId());
+		HomeResponse otherResponse = houseQueryService.getHome(house.getId(), other.getId());
 
 		assertThat(response.notifications()).hasSize(1);
 		assertThat(response.notifications().get(0).message()).isEqualTo("민지가 설거지를 덜어갔어요");
@@ -186,7 +186,7 @@ class HomeServiceTest {
 	void 구성원이_아니면_조회할_수_없다() {
 		User stranger = userRepository.save(new User("device-3", "철수", CharacterType.CHARACTER_2));
 
-		assertThatThrownBy(() -> homeService.getHome(house.getId(), stranger.getId()))
+		assertThatThrownBy(() -> houseQueryService.getHome(house.getId(), stranger.getId()))
 				.isInstanceOf(BusinessException.class);
 	}
 
@@ -201,7 +201,7 @@ class HomeServiceTest {
 		assignment(active, me, "내 짐");
 		transferRepository.save(Transfer.request(pending, other, me));
 
-		MemberDetailResponse response = homeService.getMemberDetail(house.getId(), me.getId(), other.getId());
+		MemberDetailResponse response = houseQueryService.getMemberDetail(house.getId(), me.getId(), other.getId());
 
 		assertThat(response.name()).isEqualTo("민지");
 		assertThat(response.assignmentCount()).isEqualTo(2);
@@ -219,7 +219,7 @@ class HomeServiceTest {
 		assignment(active, other, "분리수거");
 		transferRepository.save(Transfer.request(pending, other, me));
 
-		MemberDetailResponse response = homeService.getMemberDetail(house.getId(), me.getId(), other.getId());
+		MemberDetailResponse response = houseQueryService.getMemberDetail(house.getId(), me.getId(), other.getId());
 
 		MemberDetailResponse.MemberAssignment requested = response.assignments().get(0);
 		assertThat(requested.requestPending()).isTrue();
@@ -237,9 +237,9 @@ class HomeServiceTest {
 		period(1, PeriodStatus.ACTIVE);
 		User stranger = userRepository.save(new User("device-3", "철수", CharacterType.CHARACTER_2));
 
-		assertThatThrownBy(() -> homeService.getMemberDetail(house.getId(), me.getId(), stranger.getId()))
+		assertThatThrownBy(() -> houseQueryService.getMemberDetail(house.getId(), me.getId(), stranger.getId()))
 				.isInstanceOf(BusinessException.class).hasMessageContaining("구성원");
-		assertThatThrownBy(() -> homeService.getMemberDetail(house.getId(), me.getId(), 999_999L))
+		assertThatThrownBy(() -> houseQueryService.getMemberDetail(house.getId(), me.getId(), 999_999L))
 				.isInstanceOf(BusinessException.class).hasMessageContaining("사용자");
 	}
 

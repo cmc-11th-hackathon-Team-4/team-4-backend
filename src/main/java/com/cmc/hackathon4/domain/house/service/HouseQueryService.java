@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class HomeService {
+public class HouseQueryService {
 
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;

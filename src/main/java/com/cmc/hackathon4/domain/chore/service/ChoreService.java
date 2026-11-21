@@ -18,7 +18,6 @@ import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
-import com.cmc.hackathon4.domain.house.service.HouseLocker;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
@@ -48,7 +47,6 @@ public class ChoreService {
 
 	private final ChoreRepository choreRepository;
 	private final TransferRepository transferRepository;
-	private final HouseLocker houseLocker;
 	private final AssignmentValidator assignmentValidator;
 	private final PeriodRepository periodRepository;
 	private final AssignmentRepository assignmentRepository;
@@ -77,7 +75,7 @@ public class ChoreService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreCreateResponse createChore(Long houseId, Long userId, ChoreCreateRequest request) {
 		houseMemberValidator.getMember(houseId, userId);
-		House house = houseLocker.lock(houseId);
+		House house = houseMemberValidator.lockHouse(houseId);
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
@@ -126,7 +124,7 @@ public class ChoreService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void deleteChore(Long houseId, Long userId, Long choreId) {
 		houseMemberValidator.getMember(houseId, userId);
-		House house = houseLocker.lock(houseId);
+		House house = houseMemberValidator.lockHouse(houseId);
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
@@ -157,7 +155,7 @@ public class ChoreService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreListResponse replaceChores(Long houseId, Long userId, ChoreBulkSaveRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
-		House house = houseLocker.lock(houseId);
+		House house = houseMemberValidator.lockHouse(houseId);
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}

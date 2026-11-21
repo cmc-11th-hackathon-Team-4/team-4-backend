@@ -19,7 +19,6 @@ import com.cmc.hackathon4.domain.chore.entity.Chore;
 import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
-import com.cmc.hackathon4.domain.house.service.HouseLocker;
 import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
@@ -56,7 +55,6 @@ public class PeriodService {
 
 	private final HouseMemberValidator houseMemberValidator;
 	private final HouseMemberRepository houseMemberRepository;
-	private final HouseLocker houseLocker;
 	private final PeriodRepository periodRepository;
 	private final NotificationService notificationService;
 	private final TransferRepository transferRepository;
@@ -72,7 +70,7 @@ public class PeriodService {
 			throw new BusinessException(ErrorCode.INVALID_INPUT, "days: 늘릴 일수는 1, 3, 7 중 하나여야 합니다.");
 		}
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
-		houseLocker.lock(houseId);
+		houseMemberValidator.lockHouse(houseId);
 		Period period = getActivePeriod(houseId);
 		period.extend(request.days());
 
@@ -89,7 +87,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodEndResponse end(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
-		houseLocker.lock(houseId);
+		houseMemberValidator.lockHouse(houseId);
 		Period period = getActivePeriod(houseId);
 		endPeriod(period, Instant.now());
 		return PeriodConverter.toEndResponse(period);
@@ -113,7 +111,7 @@ public class PeriodService {
 		if (houseId == null) {
 			return false;
 		}
-		houseLocker.lock(houseId);
+		houseMemberValidator.lockHouse(houseId);
 		Period period = periodRepository.findById(periodId).orElse(null);
 		if (period == null || period.getStatus() != PeriodStatus.ACTIVE || !period.getEndDate().isBefore(today)) {
 			return false;
@@ -166,7 +164,7 @@ public class PeriodService {
 		Long houseId = periodRepository.findHouseIdById(periodId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_FOUND));
 		houseMemberValidator.getMember(houseId, userId);
-		houseLocker.lock(houseId);
+		houseMemberValidator.lockHouse(houseId);
 		Period period = getPeriod(periodId);
 		if (!period.isEnded()) {
 			throw new BusinessException(ErrorCode.PERIOD_NOT_ENDED);
@@ -237,7 +235,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public NextPeriodResponse createNext(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
-		houseLocker.lock(houseId);
+		houseMemberValidator.lockHouse(houseId);
 		Period previous = getPreviousEndedPeriod(houseId);
 		LocalDate startDate = LocalDate.now(KST);
 		LocalDate endDate = previous.getHouse().getSettlementCycle().endDateFrom(startDate);
@@ -281,7 +279,7 @@ public class PeriodService {
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public PeriodStartResponse startNext(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
-		houseLocker.lock(houseId);
+		houseMemberValidator.lockHouse(houseId);
 		if (periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.ACTIVE).isPresent()) {
 			throw new BusinessException(ErrorCode.PERIOD_NEXT_ALREADY_STARTED);
 		}
