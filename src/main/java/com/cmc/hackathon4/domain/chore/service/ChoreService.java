@@ -1,8 +1,15 @@
 package com.cmc.hackathon4.domain.chore.service;
 
+import java.text.Normalizer;
 import java.time.Instant;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.entity.AssignmentStatus;
@@ -40,6 +47,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class ChoreService {
 
 	private static final int MAX_CHORES_PER_HOUSE = 10;
+
+	/** 정리한 뒤의 이름 최대 길이(글자 수). chore.name 컬럼 길이와 같다. */
+	private static final int MAX_NAME_LENGTH = 20;
+
+	/** 연속된 공백(전각 공백 등 유니코드 공백 포함) */
+	private static final Pattern WHITESPACES = Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS);
+
+	/** 결합 문자(악센트 등). 비교 키에서만 지운다. */
+	private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
+
+	/** 이모지 결합에 쓰는 zero-width joiner. 저장 이름에는 남기고 비교 키·빈 값 검사에서는 지운다. */
+	private static final int ZERO_WIDTH_JOINER = 0x200D;
 
 	/** 집안일 고르기 화면의 선택지. DB 가 아니라 서버 상수다. */
 	private static final List<String> PRESETS = List.of("빨래 널기", "설거지", "분리수거", "욕실 청소", "세탁기 돌리기", "빨래 개기",
@@ -79,8 +98,12 @@ public class ChoreService {
 		if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_DISTRIBUTING);
 		}
-		String name = request.name().trim();
-		if (choreRepository.existsByHouseIdAndNameAndActiveTrue(houseId, name)) {
+		String name = cleanName(request.name(), "name");
+		String key = nameKey(name);
+		boolean duplicated = choreRepository.findAllByHouseIdAndActiveTrueOrderByIdAsc(houseId)
+				.stream()
+				.anyMatch(chore -> nameKey(chore.getName()).equals(key));
+		if (duplicated) {
 			throw new BusinessException(ErrorCode.CHORE_DUPLICATED);
 		}
 		if (house.getStatus() == HouseStatus.WAITING) {
@@ -162,15 +185,57 @@ public class ChoreService {
 		if (house.getStatus() == HouseStatus.ACTIVE) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);
 		}
-		List<String> names = request.names().stream().map(String::trim).toList();
-		if (new HashSet<>(names).size() != names.size()) {
-			throw new BusinessException(ErrorCode.INVALID_INPUT);
+		List<String> names = request.names().stream().map(name -> cleanName(name, "names")).toList();
+		Map<String, String> firstByKey = new HashMap<>();
+		Set<String> duplicates = names.stream()
+				.filter(name -> firstByKey.putIfAbsent(nameKey(name), name) != null)
+				.collect(Collectors.toCollection(LinkedHashSet::new));
+		if (!duplicates.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT,
+					"names: 중복된 이름이 있습니다: " + String.join(", ", duplicates));
 		}
 
 		choreRepository.deleteAll(choreRepository.findAllByHouseId(houseId));
 		choreRepository.flush();
 		List<Chore> saved = choreRepository.saveAll(names.stream().map(name -> ChoreConverter.toEntity(house, name)).toList());
 		return ChoreConverter.toListResponse(saved);
+	}
+
+	/**
+	 * 저장할 이름으로 정리한다. 보이지 않는 서식 문자(zero-width space, BOM 등)를 지우고, 앞뒤 공백(전각 공백 포함)을 없애고, 안쪽 연속 공백은 한 칸으로 줄인다.
+	 * 정리한 뒤 비었거나 20자를 넘으면 INVALID_INPUT(field: 메시지)을 던진다.
+	 */
+	private static String cleanName(String raw, String field) {
+		String withoutFormat = removeFormatChars(raw == null ? "" : raw, true);
+		String name = WHITESPACES.matcher(withoutFormat).replaceAll(" ").strip();
+		if (removeFormatChars(name, false).isBlank()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, field + ": 집안일 이름은 필수입니다.");
+		}
+		if (name.codePointCount(0, name.length()) > MAX_NAME_LENGTH) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT,
+					field + ": 집안일 이름은 " + MAX_NAME_LENGTH + "자 이하여야 합니다.");
+		}
+		return name;
+	}
+
+	/**
+	 * 중복 비교용 키. 대소문자·악센트·전각/반각 차이를 무시한다 (MySQL *_ai_ci 정렬 규칙과 비슷하게, DB 와 무관하게 Java 에서 비교).
+	 */
+	private static String nameKey(String name) {
+		String key = Normalizer.normalize(removeFormatChars(name, false), Normalizer.Form.NFKC);
+		key = Normalizer.normalize(key, Normalizer.Form.NFD);
+		key = COMBINING_MARKS.matcher(key).replaceAll("");
+		key = WHITESPACES.matcher(key).replaceAll(" ").strip();
+		return Normalizer.normalize(key, Normalizer.Form.NFC).toLowerCase(Locale.ROOT);
+	}
+
+	/** 서식 문자(Unicode Cf)를 지운다. keepJoiner 이면 이모지 결합용 zero-width joiner 는 남긴다. */
+	private static String removeFormatChars(String value, boolean keepJoiner) {
+		StringBuilder builder = new StringBuilder(value.length());
+		value.codePoints()
+				.filter(cp -> Character.getType(cp) != Character.FORMAT || (keepJoiner && cp == ZERO_WIDTH_JOINER))
+				.forEach(builder::appendCodePoint);
+		return builder.toString();
 	}
 
 }
