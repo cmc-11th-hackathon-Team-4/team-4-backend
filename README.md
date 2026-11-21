@@ -131,6 +131,10 @@ DB_PASSWORD=<DB 비밀번호>
 
    Caddyfile 만 도메인용으로 바뀌고 Caddy 가 재시작되면서 Let's Encrypt 인증서를 자동 발급한다. 앱 서비스, `app.jar`, `.env` 는 그대로 유지된다. 발급에는 DNS 가 이 서버를 가리키고 80/443 이 열려 있어야 한다. 이후 `http://<도메인>` 은 `https` 로 리다이렉트되고, IP 로 직접 접근하는 주소는 더 이상 쓰지 않는다 (프론트의 API 주소를 `https://<도메인>` 으로 바꾼다).
 
+   Session Manager 대신 GitHub 의 Actions → **Setup HTTPS (Caddy domain)** → Run workflow 에 도메인을 넣어 실행해도 된다. 같은 스크립트를 SSM 으로 실행하고 `https://<도메인>/api/v1/health` 까지 확인한다. 서버에 접속할 권한이 없는 팀원도 쓸 수 있다.
+
+현재 운영 도메인은 `niturnnaeturn.duckdns.org` 이다.
+
 도메인을 사지 않고 HTTPS 를 쓰려면:
 
 - **DuckDNS** (권장): <https://www.duckdns.org> 에서 `<이름>.duckdns.org` 를 무료로 만들고 IP 에 탄력적 IP 를 입력한다. `duckdns.org` 는 Public Suffix List 에 등록돼 있어 Let's Encrypt 발급 한도를 서브도메인별로 따로 받는다.
