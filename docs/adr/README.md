@@ -6,7 +6,8 @@
 | --- | --- | --- |
 | [0001](0001-ssm-instead-of-ssh.md) | 서버 접속·배포는 SSH(pem) 대신 SSM | 채택 |
 | [0002](0002-caddy-duckdns-https.md) | HTTPS 는 Caddy + DuckDNS | 채택 |
-| [0003](0003-redis-on-ec2.md) | Redis 는 ElastiCache 대신 EC2 에 직접 설치 | 채택 |
+| [0003](0003-redis-on-ec2.md) | Redis 는 ElastiCache 대신 EC2 에 직접 설치 | 대체됨(→ 0010) |
+| [0010](0010-remove-redis.md) | Redis 를 쓰지 않아 제거 | 채택 |
 | [0004](0004-no-elastic-ip.md) | 탄력적 IP 없이 자동 할당 공인 IP 사용 | 채택 (임시) |
 | [0005](0005-ddl-auto-update.md) | 스키마는 Flyway 없이 `ddl-auto: update` | 채택 |
 | [0006](0006-cors-frontend-only.md) | CORS 는 프론트 주소만 허용 | 채택 |
