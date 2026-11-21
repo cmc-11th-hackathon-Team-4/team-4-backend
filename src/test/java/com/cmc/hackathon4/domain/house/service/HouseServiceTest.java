@@ -106,7 +106,7 @@ class HouseServiceTest {
 		User other = newUser("dev-other");
 		HouseCreateResponse distributing = houseService.create(other.getId(), new HouseCreateRequest("배분중"));
 		houseRepository.findById(distributing.id()).orElseThrow()
-				.startDistributing(com.cmc.hackathon4.domain.house.entity.SettlementCycle.WEEKLY);
+				.startDistributing(7);
 		houseRepository.flush();
 		assertError(() -> houseService.getInvitePreview(distributing.inviteCode()), ErrorCode.HOUSE_DISTRIBUTING);
 	}
@@ -116,7 +116,7 @@ class HouseServiceTest {
 		User owner = newUser("dev-owner");
 		HouseCreateResponse created = houseService.create(owner.getId(), new HouseCreateRequest("우리집"));
 		House house = houseRepository.findById(created.id()).orElseThrow();
-		house.startDistributing(com.cmc.hackathon4.domain.house.entity.SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		houseRepository.flush();
 		User newcomer = newUser("dev-new");
 

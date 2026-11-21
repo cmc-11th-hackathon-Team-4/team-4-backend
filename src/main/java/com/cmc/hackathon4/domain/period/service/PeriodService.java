@@ -238,7 +238,7 @@ public class PeriodService {
 		houseMemberValidator.lockHouse(houseId);
 		Period previous = getPreviousEndedPeriod(houseId);
 		LocalDate startDate = LocalDate.now(KST);
-		LocalDate endDate = previous.getHouse().getSettlementCycle().endDateFrom(startDate);
+		LocalDate endDate = previous.getHouse().periodEndDateFrom(startDate);
 		Period next = findReadyNext(houseId, previous).map(ready -> {
 			ready.reschedule(startDate, endDate);
 			return ready;
@@ -288,7 +288,7 @@ public class PeriodService {
 		Period next = findReadyNext(houseId, previous)
 				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NEXT_NOT_READY));
 		LocalDate today = LocalDate.now(KST);
-		next.reschedule(today, previous.getHouse().getSettlementCycle().endDateFrom(today));
+		next.reschedule(today, previous.getHouse().periodEndDateFrom(today));
 		next.start();
 
 		notificationService.sendAll(membersExcept(houseId, userId), owner.getUser(), null,

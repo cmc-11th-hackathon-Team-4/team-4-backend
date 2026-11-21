@@ -20,7 +20,6 @@ import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.house.service.HouseService;
@@ -215,10 +214,10 @@ class HouseConcurrencyRegression1Test {
 
 	private Fixture distributingHouse(int memberCount) {
 		Fixture f = waitingHouse(memberCount);
-		f.house.startDistributing(SettlementCycle.WEEKLY);
+		f.house.startDistributing(7);
 		House house = houseRepository.save(f.house);
 		LocalDate start = LocalDate.of(2026, 11, 23);
-		Period period = periodRepository.save(new Period(house, 1, start, SettlementCycle.WEEKLY.endDateFrom(start)));
+		Period period = periodRepository.save(new Period(house, 1, start, start.plusDays(6)));
 		return new Fixture(house, f.users, f.chore, period);
 	}
 

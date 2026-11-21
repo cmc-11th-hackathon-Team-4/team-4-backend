@@ -116,11 +116,14 @@ public class HouseService {
 			house.rename(request.name().trim());
 		}
 		if (request.settlementCycle() != null) {
+			if (!House.isValidSettlementCycle(request.settlementCycle())) {
+				throw new BusinessException(ErrorCode.INVALID_INPUT, "settlementCycle: 결산 주기는 1, 3, 7일 중 하나여야 합니다.");
+			}
 			house.changeSettlementCycle(request.settlementCycle());
 			if (house.getStatus() == HouseStatus.DISTRIBUTING) {
 				periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
 						.ifPresent(ready -> ready.reschedule(ready.getStartDate(),
-								request.settlementCycle().endDateFrom(ready.getStartDate())));
+								house.periodEndDateFrom(ready.getStartDate())));
 			}
 		}
 		return HouseConverter.toUpdateResponse(house);
