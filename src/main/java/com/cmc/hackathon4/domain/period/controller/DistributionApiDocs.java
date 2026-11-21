@@ -15,10 +15,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Distribution", description = "온보딩 랜덤 배분 API")
 public interface DistributionApiDocs {
 
-	@Operation(summary = "결산 주기 저장·랜덤 배분 만들기", description = "방장이 결산 주기와 시작일을 저장하고 1회차 기간(READY)과 랜덤 배분을 만든다. 집은 DISTRIBUTING 이 된다. 이미 DISTRIBUTING 이면 주기·날짜를 갱신하고 배분을 새로 만든다.")
+	@Operation(summary = "결산 주기 저장·랜덤 배분 만들기", description = "방장이 결산 주기(1, 3, 7일)와 시작일을 저장하고 1회차 기간(READY)과 랜덤 배분을 만든다. 집은 DISTRIBUTING 이 된다. 이미 DISTRIBUTING 이면 주기·날짜를 갱신하고 배분을 새로 만든다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.HOUSE_ALREADY_STARTED })
-	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "시작일이 과거, 올바르지 않은 결산 주기, 집안일이 0개")
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "시작일이 과거, 결산 주기가 1, 3, 7 이 아님, 집안일이 0개")
 	ApiResponse<DistributionResponse> create(User user,
 			@Parameter(description = "집 ID", example = "1") Long houseId, DistributionCreateRequest request);
 

@@ -10,7 +10,6 @@ import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
@@ -66,7 +65,7 @@ class SchemaSmokeTest {
 		Chore chore = choreRepository.save(new Chore(house, "설거지"));
 		LocalDate startDate = LocalDate.of(2026, 11, 23);
 		Period period = periodRepository
-				.save(new Period(house, 1, startDate, SettlementCycle.WEEKLY.endDateFrom(startDate)));
+				.save(new Period(house, 1, startDate, startDate.plusDays(6)));
 		Assignment assignment = assignmentRepository.save(new Assignment(period, chore, owner, false));
 		Transfer transfer = transferRepository.save(Transfer.relieve(assignment, owner, member, Instant.now()));
 		notificationService.send(owner, member, transfer, NotificationType.CHORE_RELIEVED, "민지가 설거지를 덜어갔어요");
@@ -92,7 +91,6 @@ class SchemaSmokeTest {
 		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(owner.getId())).hasSize(1);
 		assertThat(notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(owner.getId(),
 				transfer.getId(), NotificationType.CHORE_RELIEVED)).hasSize(1);
-		assertThat(SettlementCycle.MONTHLY.endDateFrom(startDate)).isEqualTo(LocalDate.of(2026, 12, 22));
 	}
 
 }

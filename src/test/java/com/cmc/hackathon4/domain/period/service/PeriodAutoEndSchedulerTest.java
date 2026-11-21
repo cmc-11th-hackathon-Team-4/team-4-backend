@@ -9,7 +9,6 @@ import com.cmc.hackathon4.domain.chore.repository.ChoreRepository;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.entity.Notification;
@@ -99,7 +98,7 @@ class PeriodAutoEndSchedulerTest {
 		Period ended = activePeriod(owner, member);
 		scheduler.endExpiredPeriods(END.plusDays(1));
 		Period ready = periodRepository.save(new Period(ended.getHouse(), 2, END.plusDays(1),
-				SettlementCycle.WEEKLY.endDateFrom(END.plusDays(1))));
+				END.plusDays(7)));
 
 		int endedAgain = scheduler.endExpiredPeriods(END.plusDays(30));
 
@@ -110,7 +109,7 @@ class PeriodAutoEndSchedulerTest {
 
 	private Period activePeriod(User owner, User member) {
 		House house = houseRepository.save(new House("302호 우리집", "AE" + owner.getId() % 10000));
-		house.startDistributing(SettlementCycle.WEEKLY);
+		house.startDistributing(7);
 		house.activate();
 		houseMemberRepository.save(new HouseMember(house, owner, MemberRole.OWNER));
 		houseMemberRepository.save(new HouseMember(house, member, MemberRole.MEMBER));

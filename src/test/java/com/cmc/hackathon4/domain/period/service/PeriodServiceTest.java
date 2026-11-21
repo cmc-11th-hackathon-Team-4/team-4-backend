@@ -18,7 +18,6 @@ import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
-import com.cmc.hackathon4.domain.house.entity.SettlementCycle;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.entity.Notification;
@@ -174,7 +173,7 @@ class PeriodServiceTest {
 		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 		assertThat(period1.getEndDate()).isAfter(today);
 		assertThat(next.period().startDate()).isEqualTo(today);
-		assertThat(next.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+		assertThat(next.period().endDate()).isEqualTo(today.plusDays(6));
 		assertThat(next.totalCount()).isEqualTo(7);
 		NextPeriodResponse viewed = periodService.getNext(houseId, member1Id);
 		assertThat(viewed.prepared()).isTrue();
@@ -184,7 +183,7 @@ class PeriodServiceTest {
 
 		assertThat(started.period().status()).isEqualTo(PeriodStatus.ACTIVE);
 		assertThat(started.period().startDate()).isEqualTo(today);
-		assertThat(started.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+		assertThat(started.period().endDate()).isEqualTo(today.plusDays(6));
 		assertThat(started.period().round()).isEqualTo(2);
 		assertThat(houseRepository.findById(houseId).orElseThrow().getStatus()).isEqualTo(HouseStatus.ACTIVE);
 		assertThat(notificationTypes(member1Id)).contains(NotificationType.PERIOD_STARTED);
@@ -420,12 +419,12 @@ class PeriodServiceTest {
 		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
 		periodRepository.findById(nextPeriodId)
 				.orElseThrow()
-				.reschedule(today.minusDays(10), SettlementCycle.WEEKLY.endDateFrom(today.minusDays(10)));
+				.reschedule(today.minusDays(10), today.minusDays(4));
 
 		var started = periodService.startNext(houseId, ownerId);
 
 		assertThat(started.period().startDate()).isEqualTo(today);
-		assertThat(started.period().endDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+		assertThat(started.period().endDate()).isEqualTo(today.plusDays(6));
 	}
 
 	@Test
@@ -464,7 +463,7 @@ class PeriodServiceTest {
 
 	private Long startFirstPeriod() {
 		distributionService.create(houseId, ownerId,
-				new DistributionCreateRequest(SettlementCycle.WEEKLY, LocalDate.now(ZoneId.of("Asia/Seoul"))));
+				new DistributionCreateRequest(7, LocalDate.now(ZoneId.of("Asia/Seoul"))));
 		distributionService.start(houseId, ownerId);
 		return periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.ACTIVE).orElseThrow().getId();
 	}
