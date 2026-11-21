@@ -1,6 +1,7 @@
 package com.cmc.hackathon4.domain.assignment.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
 import com.cmc.hackathon4.domain.assignment.entity.AssignmentStatus;
@@ -25,5 +26,9 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 	@Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query("delete from Assignment a where a.period.id = :periodId")
 	void deleteAllByPeriodId(@Param("periodId") Long periodId);
+
+	/** 짐 하나. 기간·집·집안일·담당자를 함께 가져온다. */
+	@EntityGraph(attributePaths = {"period", "period.house", "chore", "assignee"})
+	Optional<Assignment> findWithDetailsById(Long id);
 
 }
