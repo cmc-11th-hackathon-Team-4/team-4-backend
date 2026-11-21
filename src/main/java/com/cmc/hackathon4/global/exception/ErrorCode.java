@@ -45,6 +45,7 @@ public enum ErrorCode {
 	PERIOD_ENDED(HttpStatus.CONFLICT, "PERIOD-409", "이미 종료된 기간입니다."),
 	PERIOD_NOT_ENDED(HttpStatus.CONFLICT, "PERIOD-409-1", "아직 종료되지 않은 기간입니다."),
 	PERIOD_NEXT_ALREADY_STARTED(HttpStatus.CONFLICT, "PERIOD-409-2", "이미 다음 기간이 시작되었습니다."),
+	PERIOD_NOT_STARTED(HttpStatus.CONFLICT, "PERIOD-409-3", "아직 시작하지 않은 기간입니다."),
 
 	// 짐
 	ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "ASSIGNMENT-404", "짐을 찾을 수 없습니다."),

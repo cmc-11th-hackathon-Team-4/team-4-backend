@@ -108,12 +108,19 @@ public class DistributionService {
 		return createDistribution(getHouse(houseId), getReadyPeriod(houseId), userId);
 	}
 
-	/** 배분을 확정한다. 기간 READY → ACTIVE, 집 DISTRIBUTING → ACTIVE, 방장 제외 전원에게 PERIOD_STARTED 알림. */
+	/**
+	 * 배분을 확정한다. 기간 READY → ACTIVE, 집 DISTRIBUTING → ACTIVE, 방장 제외 전원에게 PERIOD_STARTED 알림. 정한 시작일이 이미 지났으면 오늘(KST)부터
+	 * 다시 잡는다.
+	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionStartResponse start(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
 		House house = requireDistributing(lockHouse(houseId));
 		Period period = getReadyPeriod(houseId);
+		LocalDate today = LocalDate.now(KST);
+		if (period.getStartDate().isBefore(today)) {
+			period.reschedule(today, house.getSettlementCycle().endDateFrom(today));
+		}
 		period.start();
 		house.activate();
 

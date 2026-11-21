@@ -86,4 +86,8 @@ public class Period extends BaseTimeEntity {
 		return status == PeriodStatus.ENDED;
 	}
 
+	public boolean isActive() {
+		return status == PeriodStatus.ACTIVE;
+	}
+
 }

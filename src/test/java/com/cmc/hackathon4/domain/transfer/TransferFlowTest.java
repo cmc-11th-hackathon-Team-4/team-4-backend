@@ -164,6 +164,19 @@ class TransferFlowTest {
 		expectError(() -> transferService.relieve(minji.getId(), ended.getId()), ErrorCode.PERIOD_ENDED);
 	}
 
+	@Test
+	void 시작_전_기간의_짐은_완료_덜어가기_부탁을_할_수_없다() {
+		LocalDate nextStart = period.getEndDate().plusDays(1);
+		Period next = periodRepository
+				.save(new Period(house, 2, nextStart, SettlementCycle.WEEKLY.endDateFrom(nextStart)));
+		Assignment ready = assignmentRepository.save(new Assignment(next, chore, suah, false));
+
+		expectError(() -> assignmentService.complete(suah.getId(), ready.getId()), ErrorCode.PERIOD_NOT_STARTED);
+		expectError(() -> transferService.relieve(minji.getId(), ready.getId()), ErrorCode.PERIOD_NOT_STARTED);
+		expectError(() -> transferService.request(suah.getId(), ready.getId(),
+				new TransferRequestCreateRequest(minji.getId())), ErrorCode.PERIOD_NOT_STARTED);
+	}
+
 	// ---- #21 짐 올리기 부탁 ----
 
 	@Test

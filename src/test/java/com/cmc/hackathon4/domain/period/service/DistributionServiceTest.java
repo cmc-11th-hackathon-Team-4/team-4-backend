@@ -54,6 +54,8 @@ class DistributionServiceTest {
 	AssignmentRepository assignmentRepository;
 	@Autowired
 	NotificationRepository notificationRepository;
+	@Autowired
+	com.cmc.hackathon4.domain.house.service.HouseService houseService;
 
 	Long houseId;
 	Long ownerId;
@@ -183,6 +185,31 @@ class DistributionServiceTest {
 		assertThatThrownBy(() -> distributionService.create(houseId, ownerId, request()))
 				.extracting(e -> ((BusinessException) e).getErrorCode())
 				.isEqualTo(ErrorCode.HOUSE_ALREADY_STARTED);
+	}
+
+	@Test
+	void 정한_시작일이_지난_뒤_확정하면_오늘부터_기간을_다시_잡는다() {
+		Long periodId = distributionService.create(houseId, ownerId, request()).period().id();
+		LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+		Period ready = periodRepository.findById(periodId).orElseThrow();
+		ready.reschedule(today.minusDays(10), today.minusDays(4));
+
+		distributionService.start(houseId, ownerId);
+
+		Period started = periodRepository.findById(periodId).orElseThrow();
+		assertThat(started.getStartDate()).isEqualTo(today);
+		assertThat(started.getEndDate()).isEqualTo(SettlementCycle.WEEKLY.endDateFrom(today));
+	}
+
+	@Test
+	void 배분_확인_중에_주기를_바꾸면_1회차_기간의_종료일도_새_주기로_바뀐다() {
+		var created = distributionService.create(houseId, ownerId, request());
+
+		houseService.update(houseId, ownerId,
+				new com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest(null, SettlementCycle.MONTHLY));
+
+		Period ready = periodRepository.findById(created.period().id()).orElseThrow();
+		assertThat(ready.getEndDate()).isEqualTo(SettlementCycle.MONTHLY.endDateFrom(created.period().startDate()));
 	}
 
 	private DistributionCreateRequest request() {
