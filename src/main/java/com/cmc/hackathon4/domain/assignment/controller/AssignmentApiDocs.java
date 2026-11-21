@@ -22,10 +22,11 @@ public interface AssignmentApiDocs {
 	ApiResponse<AssignmentCompleteResponse> complete(User user,
 			@Parameter(description = "짐 ID", example = "1") Long assignmentId);
 
-	@Operation(summary = "덜어가기", description = "같은 집 구성원의 TODO 짐을 승인 없이 내 짐으로 가져온다. 원래 담당자에게 CHORE_RELIEVED 알림이 간다.")
+	@Operation(summary = "덜어가기", description = "같은 집 구성원의 TODO 짐을 승인 없이 내 짐으로 가져온다. 원래 담당자에게 CHORE_RELIEVED 알림이 간다. 내 손을 떠난 짐(내가 최초 담당자이거나 넘긴 적이 있는 짐)은 덜어가기로 되가져올 수 없다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "덜어가기 성공")
 	@ApiErrorCodes({ ErrorCode.ASSIGNMENT_OWN_RELIEVE, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.ASSIGNMENT_NOT_FOUND, ErrorCode.ASSIGNMENT_ALREADY_DONE, ErrorCode.ASSIGNMENT_REQUEST_PENDING, ErrorCode.PERIOD_ENDED, ErrorCode.PERIOD_NOT_STARTED })
 	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_LIMIT_EXCEEDED, when = "덜어가는 사람의 남은 짐이 이미 5개")
+	@ApiErrorCase(code = ErrorCode.ASSIGNMENT_RELIEVE_BACK, when = "내가 최초 담당자이거나 이미 넘긴 적이 있는 짐을 다시 덜어가려 함")
 	ApiResponse<TransferRelieveResponse> relieve(User user,
 			@Parameter(description = "덜어갈 짐 ID", example = "5") Long assignmentId);
 

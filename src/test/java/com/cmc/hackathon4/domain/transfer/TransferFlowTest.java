@@ -18,8 +18,10 @@ import com.cmc.hackathon4.domain.house.repository.HouseRepository;
 import com.cmc.hackathon4.domain.notification.entity.Notification;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
+import com.cmc.hackathon4.domain.period.dto.SettlementResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.period.service.PeriodService;
 import com.cmc.hackathon4.domain.transfer.dto.TransferHeartResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRelieveResponse;
 import com.cmc.hackathon4.domain.transfer.dto.TransferRequestCreateRequest;
@@ -69,6 +71,8 @@ class TransferFlowTest {
 	AssignmentService assignmentService;
 	@Autowired
 	TransferService transferService;
+	@Autowired
+	PeriodService periodService;
 
 	User suah;
 	User minji;
@@ -145,6 +149,57 @@ class TransferFlowTest {
 		assertThat(notification.getType()).isEqualTo(NotificationType.CHORE_RELIEVED);
 		assertThat(notification.getMessage()).isEqualTo("민지가 분리수거를 덜어갔어요");
 		assertThat(notification.getTransfer().getId()).isEqualTo(transfer.getId());
+	}
+
+	@Test
+	void 원래_담당자는_덜어간_짐을_다시_덜어올_수_없다() {
+		transferService.relieve(minji.getId(), assignment.getId());
+
+		expectError(() -> transferService.relieve(suah.getId(), assignment.getId()),
+				ErrorCode.ASSIGNMENT_RELIEVE_BACK);
+		assertThat(assignment.getAssignee()).isEqualTo(minji);
+	}
+
+	@Test
+	void 넘긴_짐은_덜어가기로_되가져올_수_없고_결산에서는_최종으로_맡은_사람만_한_번_인정된다() {
+		User jiwoo = userRepository.save(new User("device-4", "지우", CharacterType.CHARACTER_2));
+		houseMemberRepository.save(new HouseMember(house, jiwoo, MemberRole.MEMBER));
+
+		transferService.relieve(minji.getId(), assignment.getId());
+		transferService.relieve(jiwoo.getId(), assignment.getId());
+		expectError(() -> transferService.relieve(minji.getId(), assignment.getId()),
+				ErrorCode.ASSIGNMENT_RELIEVE_BACK);
+		period.end(Instant.now());
+
+		SettlementResponse settlement = periodService.getSettlement(period.getId(), suah.getId());
+
+		assertThat(settlement.summary().helpedCount()).isEqualTo(1);
+		assertThat(settlement.kindness().kingUserIds()).containsExactly(jiwoo.getId());
+		assertThat(settlement.kindness().ranking())
+				.filteredOn(ranking -> ranking.userId().equals(minji.getId()))
+				.singleElement()
+				.extracting(SettlementResponse.Ranking::helpedCount)
+				.isEqualTo(0);
+	}
+
+	@Test
+	void 짐이_최초_담당자에게_돌아가면_결산에서_도움으로_세지_않는다() {
+		Long relieveId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		transferService.heart(suah.getId(), relieveId);
+		Long requestId = transferService
+				.request(minji.getId(), assignment.getId(), new TransferRequestCreateRequest(suah.getId()))
+				.transferId();
+		transferService.accept(suah.getId(), requestId);
+		period.end(Instant.now());
+
+		SettlementResponse settlement = periodService.getSettlement(period.getId(), suah.getId());
+
+		assertThat(settlement.summary().helpedCount()).isZero();
+		assertThat(settlement.kindness().kingUserIds()).isEmpty();
+		assertThat(settlement.kindness().ranking()).allSatisfy(ranking -> {
+			assertThat(ranking.helpedCount()).isZero();
+			assertThat(ranking.receivedHeartCount()).isZero();
+		});
 	}
 
 	@Test
@@ -333,6 +388,27 @@ class TransferFlowTest {
 
 		assertThat(transferRepository.countByToUserIdAndStatusAndHeartedAtIsNotNull(minji.getId(),
 				TransferStatus.ACCEPTED)).isZero();
+	}
+
+	@Test
+	void 하트를_받은_덜어가기를_되돌리면_하트_알림이_읽음_처리되고_하트가_무효가_된다() {
+		Long transferId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		transferService.heart(suah.getId(), transferId);
+
+		transferService.cancel(minji.getId(), transferId);
+
+		assertThat(notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(minji.getId(),
+				transferId, NotificationType.HEART_RECEIVED)).isEmpty();
+		assertThat(transferRepository.findById(transferId).orElseThrow().isHearted()).isFalse();
+	}
+
+	@Test
+	void 종료된_기간의_덜어가기에는_하트를_보낼_수_없다() {
+		Long transferId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		period.end(Instant.now());
+
+		expectError(() -> transferService.heart(suah.getId(), transferId), ErrorCode.PERIOD_ENDED);
+		assertThat(transferRepository.findById(transferId).orElseThrow().isHearted()).isFalse();
 	}
 
 	// ---- 개인 한도(5개) ----

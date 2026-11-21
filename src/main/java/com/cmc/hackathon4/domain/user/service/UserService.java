@@ -46,7 +46,7 @@ public class UserService {
 	public UserResponse update(Long userId, UserUpdateRequest request) {
 		User user = getUser(userId);
 		if (request.name() != null) {
-			user.changeName(request.name());
+			user.changeName(validName(request.name()));
 		}
 		if (request.characterType() != null) {
 			user.changeCharacterType(request.characterType());
@@ -87,16 +87,32 @@ public class UserService {
 
 	@Transactional
 	public UserResponse create(UserCreateRequest request) {
+		String name = validName(request.name());
 		if (userRepository.existsByDeviceId(request.deviceId())) {
 			throw new BusinessException(ErrorCode.USER_ALREADY_REGISTERED);
 		}
 		try {
-			return UserConverter.toResponse(userRepository.saveAndFlush(UserConverter.toEntity(request)));
+			return UserConverter.toResponse(userRepository.saveAndFlush(UserConverter.toEntity(request, name)));
 		}
 		catch (DataIntegrityViolationException e) {
 			// 동시에 같은 deviceId 로 들어온 요청이 unique 제약에 걸린 경우
 			throw new BusinessException(ErrorCode.USER_ALREADY_REGISTERED);
 		}
+	}
+
+	/**
+	 * 앞뒤 공백(전각 공백 포함)을 뺀 이름을 돌려준다. 길이는 이모지도 한 글자로 세도록 코드 포인트로 센다. @Size 는 UTF-16 단위로 세서 이모지 6개도 10자를
+	 * 넘는 것으로 보기 때문에 요청 record 대신 여기서 검사한다.
+	 */
+	private static String validName(String name) {
+		String stripped = name.strip();
+		if (stripped.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "name: 이름은 공백만 입력할 수 없습니다.");
+		}
+		if (stripped.codePointCount(0, stripped.length()) > User.NAME_MAX_LENGTH) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "name: 이름은 1~10자여야 합니다.");
+		}
+		return stripped;
 	}
 
 }

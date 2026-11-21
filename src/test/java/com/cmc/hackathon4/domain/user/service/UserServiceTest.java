@@ -130,4 +130,51 @@ class UserServiceTest {
 		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(loner.getId())).isEmpty();
 	}
 
+	// Regression: 이름 앞뒤 공백이 그대로 저장돼 알림이 "철수 가 ..." 처럼 나가던 문제
+	@Test
+	void 이름은_앞뒤_공백을_빼고_저장하고_알림의_조사도_그_이름으로_고른다() {
+		userService.create(new UserCreateRequest("device-strip", " 수아　", CharacterType.CHARACTER_1));
+		User me = userRepository.findByDeviceId("device-strip").orElseThrow();
+		assertThat(me.getName()).isEqualTo("수아");
+
+		assertThat(userService.update(me.getId(), new UserUpdateRequest("철수 ", null)).name()).isEqualTo("철수");
+		User mate = userRepository.save(new User("device-strip-mate", "민지", CharacterType.CHARACTER_2));
+		House house = houseRepository.save(new House("302호", "K7Q2M7"));
+		houseMemberRepository.save(new HouseMember(house, me, MemberRole.OWNER));
+		houseMemberRepository.save(new HouseMember(house, mate, MemberRole.MEMBER));
+
+		userService.updateMood(me.getId(), new UserMoodUpdateRequest(Mood.NO_CHOICE));
+
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(mate.getId()))
+				.singleElement()
+				.extracting(n -> n.getMessage())
+				.isEqualTo("철수가 아무것도 고르기 싫대요");
+	}
+
+	@Test
+	void 앞뒤_공백을_빼면_비는_이름은_만들기와_수정_모두_막힌다() {
+		User user = userRepository.save(new User("device-blank", "수아", CharacterType.CHARACTER_1));
+
+		assertThatThrownBy(() -> userService.create(new UserCreateRequest("device-blank2", "　", CharacterType.CHARACTER_1)))
+				.isInstanceOf(BusinessException.class)
+				.hasMessage("name: 이름은 공백만 입력할 수 없습니다.");
+		assertThatThrownBy(() -> userService.update(user.getId(), new UserUpdateRequest("　 ", null)))
+				.isInstanceOf(BusinessException.class)
+				.hasMessage("name: 이름은 공백만 입력할 수 없습니다.");
+		assertThat(userRepository.findByDeviceId("device-blank2")).isEmpty();
+	}
+
+	// Regression: 이모지는 UTF-16 두 칸이라 이모지 6개 이름도 "1~10자" 에 걸리던 문제
+	@Test
+	void 이름_길이는_이모지도_한_글자로_센다() {
+		userService.create(new UserCreateRequest("device-emoji", "🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟", CharacterType.CHARACTER_1));
+		userRepository.flush();
+		User user = userRepository.findByDeviceId("device-emoji").orElseThrow();
+		assertThat(user.getName()).isEqualTo("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟");
+
+		assertThatThrownBy(() -> userService.update(user.getId(), new UserUpdateRequest("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟", null)))
+				.isInstanceOf(BusinessException.class)
+				.hasMessage("name: 이름은 1~10자여야 합니다.");
+	}
+
 }

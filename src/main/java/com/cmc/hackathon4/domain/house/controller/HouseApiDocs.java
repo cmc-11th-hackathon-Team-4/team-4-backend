@@ -44,17 +44,17 @@ public interface HouseApiDocs {
 	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND })
 	ApiResponse<HouseDetailResponse> getDetail(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
-	@Operation(summary = "집 이름·결산 주기 수정", description = "방장만 가능. 보낸 필드만 수정하며, 결산 주기 변경은 다음 기간부터 적용된다(진행 중 기간의 endDate 는 그대로).")
+	@Operation(summary = "집 이름·결산 주기 수정", description = "방장만 가능. 보낸 필드만 수정하며, 결산 주기 변경은 다음 기간부터 적용된다(진행 중 기간의 endDate 는 그대로). 아직 시작 전인 READY 기간(배분 확인 중의 1회차, 준비해 둔 다음 회차)이 있으면 그 endDate 는 새 주기로 다시 계산된다. 결산 주기는 배분을 만들 때 정하므로 WAITING 에서는 바꿀 수 없다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND })
-	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반, 결산 주기가 1, 3, 7 이 아님")
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반, 결산 주기가 1, 3, 7 이 아님, WAITING 인 집의 결산 주기 변경")
 	ApiResponse<HouseUpdateResponse> update(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			HouseUpdateRequest request);
 
-	@Operation(summary = "구성원 빼기", description = "방장만 가능하며 WAITING 상태에서만 할 수 있다. 빠진 사용자는 집이 없는 상태로 돌아간다. 방장 자신이나 이 집의 구성원이 아닌 사용자를 지정하면 COMMON-400.")
+	@Operation(summary = "구성원 빼기", description = "방장만 가능하며 WAITING 상태에서만 할 수 있다. 빠진 사용자는 집이 없는 상태로 돌아간다. 방장 자신이나 이 집의 구성원이 아닌(없는) 사용자를 지정하면 COMMON-400 이며 message 에 'userId: ...' 로 이유가 담긴다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "내보내기 성공 (data: null)")
 	@ApiErrorCodes({ ErrorCode.HOUSE_OWNER_ONLY, ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.HOUSE_DISTRIBUTING, ErrorCode.HOUSE_ALREADY_STARTED })
-	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "방장 자신 또는 구성원이 아닌 사용자 지정")
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "방장 자신 또는 이 집의 구성원이 아닌(없는) 사용자 지정")
 	ApiResponse<Void> removeMember(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			@Parameter(description = "내보낼 구성원의 사용자 ID", example = "2") Long userId);
 

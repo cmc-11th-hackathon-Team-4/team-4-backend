@@ -42,6 +42,7 @@ public enum ErrorCode {
 	// 기간
 	PERIOD_NOT_FOUND(HttpStatus.NOT_FOUND, "PERIOD-404", "진행 중인 기간이 없습니다."),
 	PERIOD_NEXT_NOT_READY(HttpStatus.NOT_FOUND, "PERIOD-404-1", "준비된 다음 기간이 없습니다."),
+	PERIOD_ID_NOT_FOUND(HttpStatus.NOT_FOUND, "PERIOD-404-2", "기간을 찾을 수 없습니다."),
 	PERIOD_ENDED(HttpStatus.CONFLICT, "PERIOD-409", "이미 종료된 기간입니다."),
 	PERIOD_NOT_ENDED(HttpStatus.CONFLICT, "PERIOD-409-1", "아직 종료되지 않은 기간입니다."),
 	PERIOD_NEXT_ALREADY_STARTED(HttpStatus.CONFLICT, "PERIOD-409-2", "이미 다음 기간이 시작되었습니다."),
@@ -54,6 +55,7 @@ public enum ErrorCode {
 	ASSIGNMENT_ALREADY_DONE(HttpStatus.CONFLICT, "ASSIGNMENT-409", "이미 완료된 짐입니다."),
 	ASSIGNMENT_REQUEST_PENDING(HttpStatus.CONFLICT, "ASSIGNMENT-409-1", "이미 부탁 중인 짐입니다."),
 	ASSIGNMENT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "ASSIGNMENT-409-2", "한 사람이 가질 수 있는 짐은 최대 5개입니다."),
+	ASSIGNMENT_RELIEVE_BACK(HttpStatus.CONFLICT, "ASSIGNMENT-409-3", "내 손을 떠난 짐은 덜어가기로 다시 가져올 수 없습니다."),
 
 	// 짐 이동
 	TRANSFER_NOT_FOUND(HttpStatus.NOT_FOUND, "TRANSFER-404", "요청을 찾을 수 없습니다."),
