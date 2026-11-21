@@ -8,6 +8,7 @@ import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
 import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
+import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -21,6 +22,10 @@ public final class PeriodConverter {
 	public static PeriodResponse toPeriodResponse(Period period) {
 		return new PeriodResponse(period.getId(), period.getRound(), period.getStartDate(), period.getEndDate(),
 				period.getStatus());
+	}
+
+	public static PeriodExtendResponse toExtendResponse(Period period) {
+		return new PeriodExtendResponse(period.getId(), period.getEndDate());
 	}
 
 	public static DistributionStartResponse toStartResponse(House house, Period period) {
