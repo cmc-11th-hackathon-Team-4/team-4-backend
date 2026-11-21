@@ -72,6 +72,15 @@ public class NotificationService {
 		notification.markRead(Instant.now());
 	}
 
+	/**
+	 * 집에서 나간 사용자의 알림을 모두 지운다. 한 사용자는 한 집에만 속하므로 지금까지 받은 알림은 모두 나간 집의 것이다.
+	 * 지우지 않으면 새 집의 홈·알림 목록·SSE 재연결에 이전 집 알림이 섞여 나온다.
+	 */
+	@Transactional
+	public void deleteAllOf(Long receiverId) {
+		notificationRepository.deleteAllByReceiverId(receiverId);
+	}
+
 	/** SSE 재연결용: lastEventId 보다 큰 내 알림을 오래된 순으로 (최대 50개). */
 	public List<NotificationResponse> findMissed(Long userId, Long lastEventId) {
 		return notificationRepository

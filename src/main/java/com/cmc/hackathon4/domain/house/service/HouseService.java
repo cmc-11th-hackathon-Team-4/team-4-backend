@@ -19,6 +19,7 @@ import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.entity.MemberRole;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
+import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
@@ -46,6 +47,7 @@ public class HouseService {
 	private final ChoreRepository choreRepository;
 	private final PeriodRepository periodRepository;
 	private final HouseMemberValidator houseMemberValidator;
+	private final NotificationService notificationService;
 
 	@Transactional
 	public HouseCreateResponse create(Long userId, HouseCreateRequest request) {
@@ -129,7 +131,7 @@ public class HouseService {
 		return HouseConverter.toUpdateResponse(house);
 	}
 
-	/** 방장이 WAITING 상태의 집에서 구성원을 내보낸다. */
+	/** 방장이 WAITING 상태의 집에서 구성원을 내보낸다. 내보낸 사람이 받은 알림(이 집의 알림)도 함께 지운다. */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public void removeMember(Long houseId, Long ownerUserId, Long targetUserId) {
 		houseMemberValidator.getOwner(houseId, ownerUserId);
@@ -147,6 +149,7 @@ public class HouseService {
 		HouseMember target = houseMemberRepository.findByHouseIdAndUserId(houseId, targetUserId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
 		houseMemberRepository.delete(target);
+		notificationService.deleteAllOf(targetUserId);
 	}
 
 	/** WAITING 은 null, DISTRIBUTING 은 READY 기간, ACTIVE 는 READY 를 뺀 최신 기간. */
