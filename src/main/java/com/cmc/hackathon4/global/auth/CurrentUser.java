@@ -1,4 +1,4 @@
-package com.cmc.hackathon4.domain.user.resolver;
+package com.cmc.hackathon4.global.auth;
 
 
 import java.lang.annotation.ElementType;

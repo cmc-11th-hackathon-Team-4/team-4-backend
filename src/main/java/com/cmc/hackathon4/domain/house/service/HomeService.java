@@ -71,7 +71,7 @@ public class HomeService {
 						m.getUser().getId().equals(userId)))
 				.toList();
 		HomeResponse.MeInfo me = HomeConverter.toMeInfo(users.get(userId), todoCounts.getOrDefault(userId, 0),
-				(int) transferRepository.countByToUserIdAndHeartedAtIsNotNull(userId));
+				(int) transferRepository.countByToUserIdAndStatusAndHeartedAtIsNotNull(userId, TransferStatus.ACCEPTED));
 
 		return new HomeResponse(HomeConverter.toHouseInfo(house),
 				period == null ? null : HomeConverter.toPeriodInfo(period), me, members,

@@ -4,7 +4,7 @@ import com.cmc.hackathon4.domain.notification.dto.NotificationListResponse;
 import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.notification.service.NotificationStreamService;
 import com.cmc.hackathon4.domain.user.entity.User;
-import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
+import com.cmc.hackathon4.global.auth.CurrentUser;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import com.cmc.hackathon4.global.response.ApiResponse;

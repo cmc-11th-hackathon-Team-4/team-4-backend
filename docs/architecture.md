@@ -75,7 +75,7 @@ src/main/java/com/cmc/hackathon4/
 - Swagger 첫 화면 설명에 공통 응답 형식, `X-Device-Id`, 시간 형식, **`ErrorCode` 전체 표**가 나온다. 표는 enum 에서 자동 생성된다 (`SwaggerConfig`).
 - 각 API 의 에러 응답은 `XxxApiDocs` 의 `@ApiErrorCodes` / `@ApiErrorCase` 를 `ErrorCodeOperationCustomizer` 가 읽어 만든다.
   HTTP 상태별로 묶고, 코드마다 실제 응답과 같은 예시(`ErrorResponse` 스키마)를 넣는다.
-- 자동으로 붙는 것: 요청 본문이 있으면 `COMMON-400`, `@CurrentUser` 가 있으면 `COMMON-400`(헤더 없음)·`USER-404`(미등록 기기, `UserWebConfig`).
+- 자동으로 붙는 것: 요청 본문이 있으면 `COMMON-400`, `@CurrentUser` 가 있으면 `COMMON-400`(헤더 없음)·`USER-404`(미등록 기기, `global/auth/UserWebConfig`).
 - 예시의 `message` 는 `ErrorCode` 기본 메시지다. 서비스가 `BusinessException(code, 메시지)` 로 다른 메시지를 주면 실제 응답의 `message` 는 다를 수 있다. 분기는 `code` 로 한다.
 
 ## 설정 파일 역할

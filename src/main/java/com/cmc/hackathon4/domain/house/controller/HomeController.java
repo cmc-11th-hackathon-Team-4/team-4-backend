@@ -4,7 +4,7 @@ import com.cmc.hackathon4.domain.house.dto.HomeResponse;
 import com.cmc.hackathon4.domain.house.dto.MemberDetailResponse;
 import com.cmc.hackathon4.domain.house.service.HomeService;
 import com.cmc.hackathon4.domain.user.entity.User;
-import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
+import com.cmc.hackathon4.global.auth.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
