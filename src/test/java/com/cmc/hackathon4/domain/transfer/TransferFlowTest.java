@@ -238,6 +238,9 @@ class TransferFlowTest {
 		expectError(() -> transferService.cancel(suah.getId(), relieveId), ErrorCode.TRANSFER_NOT_MINE);
 		transferService.cancel(minji.getId(), relieveId);
 		assertThat(assignment.getAssignee()).isEqualTo(suah);
+		// 되돌린 덜어가기의 "덜어갔어요" 알림은 원래 담당자에게 안 읽음으로 남지 않는다
+		assertThat(notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(suah.getId(),
+				relieveId, NotificationType.CHORE_RELIEVED)).isEmpty();
 	}
 
 	// ---- #25 하트 ----

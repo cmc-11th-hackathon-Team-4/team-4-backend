@@ -61,6 +61,10 @@ public class PeriodService {
 	/** 진행 중인 기간의 결산일을 days 만큼 늦추고 방장 제외 전원에게 PERIOD_EXTENDED 알림을 보낸다. */
 	@Transactional
 	public PeriodExtendResponse extend(Long houseId, Long userId, PeriodExtendRequest request) {
+		// 요청 검증이 권한 검사보다 먼저였던 기존 순서(@Valid)를 유지한다
+		if (!List.of(1, 3, 7).contains(request.days())) {
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "days: 늘릴 일수는 1, 3, 7 중 하나여야 합니다.");
+		}
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
 		Period period = getActivePeriod(houseId);
 		period.extend(request.days());
@@ -152,7 +156,8 @@ public class PeriodService {
 				.stream()
 				.collect(Collectors.toMap(Assignment::getId, Function.identity()));
 		if (request.choices().stream().anyMatch(choice -> !myUndone.containsKey(choice.assignmentId()))) {
-			throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_MINE);
+			// 남의 짐뿐 아니라 이미 완료한 내 짐도 여기로 온다
+			throw new BusinessException(ErrorCode.ASSIGNMENT_NOT_MINE, "내가 못 한 일만 이월할 수 있습니다.");
 		}
 		request.choices().forEach(choice -> myUndone.get(choice.assignmentId()).chooseCarry(choice.choice()));
 

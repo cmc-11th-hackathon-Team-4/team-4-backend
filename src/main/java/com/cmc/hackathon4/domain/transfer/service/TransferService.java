@@ -130,7 +130,7 @@ public class TransferService {
 		Instant now = Instant.now();
 		if (transfer.getType() == TransferType.REQUEST) {
 			if (!transfer.getFromUser().getId().equals(userId)) {
-				throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+				throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE, "내가 보낸 부탁만 취소할 수 있습니다.");
 			}
 			if (!transfer.isPending()) {
 				throw new BusinessException(ErrorCode.TRANSFER_ALREADY_HANDLED);
@@ -140,7 +140,7 @@ public class TransferService {
 		}
 
 		if (!transfer.getToUser().getId().equals(userId)) {
-			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE, "내가 덜어간 짐만 되돌릴 수 있습니다.");
 		}
 		Assignment assignment = transfer.getAssignment();
 		if (transfer.getStatus() != TransferStatus.ACCEPTED || assignment.isDone()
@@ -157,6 +157,9 @@ public class TransferService {
 		}
 		transfer.cancel(now);
 		assignment.changeAssignee(transfer.getFromUser());
+		// 짐이 돌아왔으니 원래 담당자의 "덜어갔어요" 알림은 더 이상 유효하지 않다 (하트도 보낼 수 없다)
+		notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(transfer.getFromUser().getId(),
+				transferId, NotificationType.CHORE_RELIEVED).forEach(notification -> notification.markRead(now));
 	}
 
 	/** 하트로 고마움 전하기(#25). RELIEVE 이동에만, 원래 담당자(fromUser)만, 한 번만 보낼 수 있다. */
@@ -165,7 +168,7 @@ public class TransferService {
 		User me = getUser(userId);
 		Transfer transfer = getTransfer(transferId);
 		if (!transfer.getFromUser().getId().equals(userId)) {
-			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE);
+			throw new BusinessException(ErrorCode.TRANSFER_NOT_MINE, "원래 담당자만 하트를 보낼 수 있습니다.");
 		}
 		if (transfer.getType() != TransferType.RELIEVE || transfer.getStatus() != TransferStatus.ACCEPTED
 				|| transfer.isHearted()) {
