@@ -16,7 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public interface TestItemApiDocs {
 
 	@Operation(summary = "[TEST] 테스트 아이템 생성", description = "[TEST] 임시 테스트용. 제목(필수)과 내용으로 아이템을 만든다.")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공")
 	ApiResponse<TestItemResponse> create(TestItemCreateRequest request);
 
 	@Operation(summary = "[TEST] 테스트 아이템 목록 조회", description = "[TEST] 임시 테스트용. 전체 아이템을 조회한다.")

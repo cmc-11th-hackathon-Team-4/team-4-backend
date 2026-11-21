@@ -11,7 +11,7 @@
 | DB | RDS MySQL. 데이터베이스는 앱이 처음 뜰 때 자동 생성 (`createDatabaseIfNotExist=true`) |
 | Redis | EC2 안에 설치 (`redis-server`, `localhost:6379` 전용, 외부 비공개) ([ADR 0003](adr/0003-redis-on-ec2.md)) |
 | 서버 접속 | Session Manager (SSM). 배포도 SSM 으로 한다 ([ADR 0001](adr/0001-ssm-instead-of-ssh.md)) |
-| 보안 그룹 인바운드 | `80`, `443` (0.0.0.0/0). `22` 도 현재 열려 있다 (팀 결정으로 유지, 배포에는 쓰지 않음) |
+| 보안 그룹 인바운드 | `80`, `443` (0.0.0.0/0) 만. `22`(SSH)는 2026-11-22 에 닫았다 (접속·배포 모두 SSM) |
 
 ## 배포 흐름
 
