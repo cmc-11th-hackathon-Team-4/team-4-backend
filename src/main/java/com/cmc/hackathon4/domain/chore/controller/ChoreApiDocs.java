@@ -33,7 +33,7 @@ public interface ChoreApiDocs {
 	ApiResponse<ChoreListResponse> replaceChores(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			ChoreBulkSaveRequest request);
 
-	@Operation(summary = "집안일 추가", description = "시작한 뒤 메인(V5-13)에서 구성원 누구나 집안일을 추가한다. 집이 ACTIVE 이면 추가한 사람의 짐으로 바로 들어가 assignment 가 채워지고, WAITING 이면 assignment 는 null. 배분 확인 중(DISTRIBUTING)에는 추가할 수 없다.")
+	@Operation(summary = "집안일 추가", description = "시작한 뒤 메인(V5-13)에서 구성원 누구나 집안일을 추가한다. 집이 ACTIVE 이면 추가한 사람의 짐으로 바로 들어가 assignment 가 채워지고, WAITING 이면 assignment 는 null. 기간이 끝나고 다음 기간을 시작하기 전이면 assignment 는 null 이고, 방장이 다음 기간 배분을 이미 만들어 뒀다면 새 집안일을 넣어 그 배분을 다시 만든다. 배분 확인 중(DISTRIBUTING)에는 추가할 수 없다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "추가 성공")
 	@ApiErrorCodes({ ErrorCode.HOUSE_NOT_MEMBER, ErrorCode.HOUSE_NOT_FOUND, ErrorCode.PERIOD_NOT_FOUND, ErrorCode.HOUSE_DISTRIBUTING })
 	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "이름 길이 위반")

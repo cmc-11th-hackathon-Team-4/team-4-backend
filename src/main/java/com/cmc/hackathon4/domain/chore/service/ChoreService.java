@@ -20,6 +20,7 @@ import com.cmc.hackathon4.domain.house.service.HouseMemberValidator;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.entity.PeriodStatus;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.period.service.PeriodService;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
@@ -44,6 +45,7 @@ public class ChoreService {
 	private final AssignmentRepository assignmentRepository;
 	private final UserRepository userRepository;
 	private final HouseMemberValidator houseMemberValidator;
+	private final PeriodService periodService;
 
 	public ChorePresetResponse findPresets() {
 		return ChoreConverter.toPresetResponse(PRESETS);
@@ -58,6 +60,7 @@ public class ChoreService {
 	 * 구성원이 집안일을 추가한다. 집이 ACTIVE 이고 진행 중인 기간이 있으면 추가한 사람의 짐을 바로 만든다.
 	 * 노션에 없는 경우의 선택: DISTRIBUTING 이면 배분 미리보기가 어긋나므로 HOUSE-409-2, ACTIVE 인데 진행 중(ACTIVE)
 	 * 기간이 없지만 지난 기간(ENDED 등)이 있으면 집안일만 만들고 assignment 는 null, 기간이 아예 없으면 PERIOD-404.
+	 * 그때 준비해 둔 다음 기간(READY)이 있으면 새 집안일이 빠지지 않도록 그 배분을 다시 만든다.
 	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public ChoreCreateResponse createChore(Long houseId, Long userId, ChoreCreateRequest request) {
@@ -80,7 +83,9 @@ public class ChoreService {
 			if (periodRepository.findFirstByHouseIdOrderByRoundDesc(houseId).isEmpty()) {
 				throw new BusinessException(ErrorCode.PERIOD_NOT_FOUND);
 			}
-			return ChoreConverter.toCreateResponse(chore, null);
+			ChoreCreateResponse response = ChoreConverter.toCreateResponse(chore, null);
+			periodService.refreshNextDistribution(houseId);
+			return response;
 		}
 		User user = userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		Assignment assignment = assignmentRepository.save(new Assignment(period, chore, user, false));
