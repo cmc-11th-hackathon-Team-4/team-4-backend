@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.house.service;
 
 import java.time.LocalDate;
 
+import com.cmc.hackathon4.domain.house.dto.HomeResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
@@ -11,11 +12,15 @@ import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
 import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
+import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
+import com.cmc.hackathon4.domain.user.dto.UserMoodUpdateRequest;
 import com.cmc.hackathon4.domain.user.entity.CharacterType;
+import com.cmc.hackathon4.domain.user.entity.Mood;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
+import com.cmc.hackathon4.domain.user.service.UserService;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -40,6 +45,12 @@ class HouseServiceTest {
 	HouseMemberRepository houseMemberRepository;
 	@Autowired
 	PeriodRepository periodRepository;
+	@Autowired
+	HouseQueryService houseQueryService;
+	@Autowired
+	NotificationService notificationService;
+	@Autowired
+	UserService userService;
 
 	private User newUser(String deviceId) {
 		return userRepository.save(new User(deviceId, "이름", CharacterType.CHARACTER_1));
@@ -151,6 +162,27 @@ class HouseServiceTest {
 
 		assertThat(houseMemberRepository.findByUserId(member.getId())).isEmpty();
 		assertThat(houseMemberRepository.findByUserId(owner.getId())).isPresent();
+	}
+
+	@Test
+	void 내보내진_구성원은_새_집에서_이전_집의_알림을_보지_않는다() {
+		User oldOwner = newUser("dev-old-owner");
+		User member = newUser("dev-member");
+		HouseCreateResponse oldHouse = houseService.create(oldOwner.getId(), new HouseCreateRequest("이전집"));
+		houseService.join(member.getId(), new HouseJoinRequest(oldHouse.inviteCode()));
+		// 이전 집 방장이 '아무것도 고르기 싫어요' 로 바꾸면 member 에게 MOOD_NO_CHOICE 알림이 간다
+		userService.updateMood(oldOwner.getId(), new UserMoodUpdateRequest(Mood.NO_CHOICE));
+		assertThat(notificationService.findMine(member.getId(), true, null)).hasSize(1);
+
+		houseService.removeMember(oldHouse.id(), oldOwner.getId(), member.getId());
+		User newOwner = newUser("dev-new-owner");
+		HouseCreateResponse newHouse = houseService.create(newOwner.getId(), new HouseCreateRequest("새집"));
+		houseService.join(member.getId(), new HouseJoinRequest(newHouse.inviteCode()));
+
+		HomeResponse home = houseQueryService.getHome(newHouse.id(), member.getId());
+		assertThat(home.notifications()).isEmpty();
+		assertThat(notificationService.findMine(member.getId(), false, null)).isEmpty();
+		assertThat(notificationService.findMissed(member.getId(), 0L)).isEmpty();
 	}
 
 	@Test

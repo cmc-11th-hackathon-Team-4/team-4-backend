@@ -8,6 +8,7 @@ import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -34,5 +35,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 	/** SSE 재연결 때 놓친 알림을 오래된 순으로 다시 보내기 위한 조회 (읽음 여부 무관). */
 	@EntityGraph(attributePaths = {"actor", "transfer", "transfer.assignment", "transfer.assignment.chore"})
 	List<Notification> findAllByReceiverIdAndIdGreaterThanOrderByIdAsc(Long receiverId, Long id, Pageable pageable);
+
+	/** 받는 사람의 알림 전체를 한 번의 쿼리로 지운다 (집에서 내보낼 때). */
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("delete from Notification n where n.receiver.id = :receiverId")
+	int deleteAllByReceiverId(@Param("receiverId") Long receiverId);
 
 }
