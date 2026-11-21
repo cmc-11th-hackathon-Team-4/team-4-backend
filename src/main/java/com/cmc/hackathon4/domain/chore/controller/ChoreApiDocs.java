@@ -1,6 +1,8 @@
 package com.cmc.hackathon4.domain.chore.controller;
 
 import com.cmc.hackathon4.domain.chore.dto.ChoreBulkSaveRequest;
+import com.cmc.hackathon4.domain.chore.dto.ChoreCreateRequest;
+import com.cmc.hackathon4.domain.chore.dto.ChoreCreateResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChoreListResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChorePresetResponse;
 import com.cmc.hackathon4.domain.user.entity.User;
@@ -31,5 +33,14 @@ public interface ChoreApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "배분 진행 중 (HOUSE-409-2), 이미 시작된 집 (HOUSE-409-4)")
 	ApiResponse<ChoreListResponse> replaceChores(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
 			ChoreBulkSaveRequest request);
+
+	@Operation(summary = "집안일 추가", description = "시작한 뒤 메인(V5-13)에서 구성원 누구나 집안일을 추가한다. 집이 ACTIVE 이면 추가한 사람의 짐으로 바로 들어가 assignment 가 채워지고, WAITING 이면 assignment 는 null. 배분 확인 중(DISTRIBUTING)에는 추가할 수 없다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "추가 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이름 길이 위반 (COMMON-400)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "이 집의 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "등록되지 않은 기기 (USER-404), 집 없음 (HOUSE-404), ACTIVE 집인데 기간이 없음 (PERIOD-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "같은 이름의 집안일이 이미 있음 (CHORE-409), 배분 진행 중 (HOUSE-409-2)")
+	ApiResponse<ChoreCreateResponse> createChore(User user, @Parameter(description = "집 ID", example = "1") Long houseId,
+			ChoreCreateRequest request);
 
 }

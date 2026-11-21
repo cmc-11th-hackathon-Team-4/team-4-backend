@@ -2,6 +2,9 @@ package com.cmc.hackathon4.domain.chore.converter;
 
 import java.util.List;
 
+import com.cmc.hackathon4.domain.assignment.entity.Assignment;
+import com.cmc.hackathon4.domain.chore.dto.ChoreAssignmentResponse;
+import com.cmc.hackathon4.domain.chore.dto.ChoreCreateResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChoreListResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChorePresetResponse;
 import com.cmc.hackathon4.domain.chore.dto.ChoreResponse;
@@ -24,6 +27,17 @@ public final class ChoreConverter {
 
 	public static ChoreResponse toResponse(Chore chore) {
 		return new ChoreResponse(chore.getId(), chore.getName());
+	}
+
+	/** assignment 가 null 이면 응답의 assignment 도 null. */
+	public static ChoreCreateResponse toCreateResponse(Chore chore, Assignment assignment) {
+		return new ChoreCreateResponse(toResponse(chore),
+				assignment == null ? null : toAssignmentResponse(assignment));
+	}
+
+	public static ChoreAssignmentResponse toAssignmentResponse(Assignment assignment) {
+		return new ChoreAssignmentResponse(assignment.getId(), assignment.getChore().getId(),
+				assignment.getChore().getName(), assignment.getStatus(), assignment.isCarriedOver());
 	}
 
 	public static ChoreListResponse toListResponse(List<Chore> chores) {
