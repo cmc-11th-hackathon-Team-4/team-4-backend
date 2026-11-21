@@ -1,5 +1,6 @@
 package com.cmc.hackathon4.domain.period.service;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 import com.cmc.hackathon4.domain.assignment.entity.Assignment;
@@ -39,6 +40,8 @@ class PeriodAutoEndSchedulerTest {
 
 	@Autowired
 	PeriodAutoEndScheduler scheduler;
+	@Autowired
+	PeriodService periodService;
 	@Autowired
 	UserRepository userRepository;
 	@Autowired
@@ -105,6 +108,36 @@ class PeriodAutoEndSchedulerTest {
 		assertThat(endedAgain).isZero();
 		assertThat(ready.getStatus()).isEqualTo(PeriodStatus.READY);
 		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(owner.getId())).hasSize(1);
+	}
+
+	@Test
+	void 자동_종료_대상을_조회한_뒤_기간을_연장하면_종료하지_않는다() {
+		User owner = userRepository.save(new User("auto-end-7", "수아", CharacterType.CHARACTER_1));
+		User member = userRepository.save(new User("auto-end-8", "민지", CharacterType.CHARACTER_3));
+		Period period = activePeriod(owner, member);
+		LocalDate today = END.plusDays(1);
+		assertThat(periodService.findExpiredPeriodIds(today)).contains(period.getId());
+		period.extend(3);
+
+		assertThat(periodService.endIfExpired(period.getId(), today)).isFalse();
+		assertThat(period.getStatus()).isEqualTo(PeriodStatus.ACTIVE);
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(owner.getId())).isEmpty();
+	}
+
+	@Test
+	void 자동_종료_대상을_조회한_뒤_이미_종료됐거나_없어진_기간은_건너뛴다() {
+		User owner = userRepository.save(new User("auto-end-9", "수아", CharacterType.CHARACTER_1));
+		User member = userRepository.save(new User("auto-end-10", "민지", CharacterType.CHARACTER_3));
+		Period period = activePeriod(owner, member);
+		LocalDate today = END.plusDays(1);
+		assertThat(periodService.findExpiredPeriodIds(today)).contains(period.getId());
+		Instant endedAt = Instant.parse("2026-11-29T15:00:00Z");
+		period.end(endedAt);
+
+		assertThat(periodService.endIfExpired(period.getId(), today)).isFalse();
+		assertThat(period.getEndedAt()).isEqualTo(endedAt);
+		assertThat(periodService.endIfExpired(Long.MAX_VALUE, today)).isFalse();
+		assertThat(notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(owner.getId())).isEmpty();
 	}
 
 	private Period activePeriod(User owner, User member) {

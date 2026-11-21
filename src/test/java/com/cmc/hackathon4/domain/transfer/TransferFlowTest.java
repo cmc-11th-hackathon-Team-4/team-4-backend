@@ -35,6 +35,8 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -256,10 +258,46 @@ class TransferFlowTest {
 				relieveId, NotificationType.CHORE_RELIEVED)).isEmpty();
 	}
 
-	// ---- #25 하트 ----
+	@Test
+	void 덜어가기를_되돌리면_그_짐의_대기_중인_부탁도_취소된다() {
+		Long relieveId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		Long pendingId = transferService.request(minji.getId(), assignment.getId(),
+				new TransferRequestCreateRequest(suah.getId())).transferId();
+
+		transferService.cancel(minji.getId(), relieveId);
+
+		assertThat(assignment.getAssignee()).isEqualTo(suah);
+		assertThat(transferRepository.findById(pendingId).orElseThrow().getStatus()).isEqualTo(TransferStatus.CANCELED);
+		expectError(() -> transferService.cancel(minji.getId(), relieveId), ErrorCode.TRANSFER_ALREADY_HANDLED);
+		expectError(() -> transferService.heart(suah.getId(), relieveId), ErrorCode.TRANSFER_ALREADY_HANDLED);
+	}
 
 	@Test
-	void 하트는_원래_담당자만_한_번_보내며_덜어감_알림이_읽음_처리된다() {
+	void 덜어간_짐을_완료했거나_다른_구성원이_부탁을_받았으면_되돌릴_수_없다() {
+		Long relieveId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
+		Long pendingId = transferService.request(minji.getId(), assignment.getId(),
+				new TransferRequestCreateRequest(suah.getId())).transferId();
+		transferService.accept(suah.getId(), pendingId);
+
+		expectError(() -> transferService.cancel(minji.getId(), relieveId), ErrorCode.TRANSFER_ALREADY_HANDLED);
+		assertThat(assignment.getAssignee()).isEqualTo(suah);
+
+		Chore otherChore = choreRepository.save(new Chore(house, "설거지"));
+		Assignment other = assignmentRepository.save(new Assignment(period, otherChore, suah, false));
+		Long otherRelieveId = transferService.relieve(minji.getId(), other.getId()).transferId();
+		assignmentService.complete(minji.getId(), other.getId());
+
+		expectError(() -> transferService.cancel(minji.getId(), otherRelieveId), ErrorCode.TRANSFER_ALREADY_HANDLED);
+		assertThat(other.getStatus()).isEqualTo(AssignmentStatus.DONE);
+		assertThat(other.getAssignee()).isEqualTo(minji);
+	}
+
+	// ---- #25 하트 ----
+
+	@ParameterizedTest
+	@CsvSource({"수아, 수아가", "수빈, 수빈이", "Alex, Alex가", "별🌟, 별🌟가"})
+	void 하트는_원래_담당자만_한_번_보내며_덜어감_알림이_읽음_처리된다(String name, String subject) {
+		suah.changeName(name);
 		Long transferId = transferService.relieve(minji.getId(), assignment.getId()).transferId();
 
 		expectError(() -> transferService.heart(minji.getId(), transferId), ErrorCode.TRANSFER_NOT_MINE);
@@ -270,7 +308,7 @@ class TransferFlowTest {
 		Notification heart = notificationRepository.findAllByReceiverIdAndReadAtIsNullOrderByIdDesc(minji.getId())
 				.get(0);
 		assertThat(heart.getType()).isEqualTo(NotificationType.HEART_RECEIVED);
-		assertThat(heart.getMessage()).isEqualTo("수아가 하트를 보냈어요");
+		assertThat(heart.getMessage()).isEqualTo(subject + " 하트를 보냈어요");
 		assertThat(notificationRepository.findAllByReceiverIdAndTransferIdAndTypeAndReadAtIsNull(suah.getId(),
 				transferId, NotificationType.CHORE_RELIEVED)).isEmpty();
 		expectError(() -> transferService.heart(suah.getId(), transferId), ErrorCode.TRANSFER_ALREADY_HANDLED);

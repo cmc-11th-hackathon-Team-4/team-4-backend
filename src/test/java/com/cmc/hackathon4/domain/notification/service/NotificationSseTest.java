@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.cmc.hackathon4.domain.notification.dto.NotificationResponse;
+import com.cmc.hackathon4.domain.notification.entity.Notification;
 import com.cmc.hackathon4.domain.notification.entity.NotificationType;
 import com.cmc.hackathon4.domain.notification.repository.NotificationRepository;
 import com.cmc.hackathon4.domain.user.entity.CharacterType;
@@ -16,6 +17,9 @@ import com.cmc.hackathon4.global.exception.ErrorCode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -144,6 +148,58 @@ class NotificationSseTest {
 		assertThatThrownBy(() -> streamService.subscribe("unknown-device", null))
 				.isInstanceOfSatisfying(BusinessException.class,
 						e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = {true, false})
+	void 재연결_등록_직전에_저장된_알림도_중복_없이_전달된다(boolean hasBacklog) {
+		Notification cursor = saveNotification("이미 받은 알림");
+		if (hasBacklog) {
+			saveNotification("접속이 끊긴 동안 저장된 알림");
+		}
+		RecordingEmitter emitter = new RecordingEmitter();
+		NotificationEmitterRegistry registryWithSaveDuringRegistration = new NotificationEmitterRegistry() {
+			@Override
+			public SseEmitter register(Long userId) {
+				saveNotification("연결 등록 직전에 저장된 알림");
+				return register(userId, emitter);
+			}
+		};
+		NotificationStreamService streamService = new NotificationStreamService(userRepository, notificationService,
+				registryWithSaveDuringRegistration);
+
+		streamService.subscribe(receiverDeviceId, cursor.getId().toString());
+
+		List<String> expectedMessages = hasBacklog
+				? List.of("접속이 끊긴 동안 저장된 알림", "연결 등록 직전에 저장된 알림")
+				: List.of("연결 등록 직전에 저장된 알림");
+		assertThat(emitter.events).filteredOn(NotificationResponse.class::isInstance)
+				.map(event -> ((NotificationResponse) event).message()).containsExactlyElementsOf(expectedMessages);
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(strings = "invalid")
+	void 마지막_이벤트_ID가_없거나_잘못되면_과거_알림을_재전송하지_않는다(String lastEventId) {
+		saveNotification("과거 알림");
+		RecordingEmitter emitter = new RecordingEmitter();
+		NotificationEmitterRegistry localRegistry = new NotificationEmitterRegistry() {
+			@Override
+			public SseEmitter register(Long userId) {
+				return register(userId, emitter);
+			}
+		};
+		NotificationStreamService streamService = new NotificationStreamService(userRepository, notificationService,
+				localRegistry);
+
+		streamService.subscribe(receiverDeviceId, lastEventId);
+
+		assertThat(emitter.events).contains("event:connected\ndata:");
+		assertThat(emitter.events).noneMatch(NotificationResponse.class::isInstance);
+	}
+
+	private Notification saveNotification(String message) {
+		return notificationRepository.save(new Notification(receiver, null, null, NotificationType.PERIOD_STARTED, message));
 	}
 
 	/** send 한 이벤트 조각(id:, event:, data 객체 등)을 기록한다. */

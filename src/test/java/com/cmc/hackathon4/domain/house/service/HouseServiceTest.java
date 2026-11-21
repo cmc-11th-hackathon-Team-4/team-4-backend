@@ -1,12 +1,18 @@
 package com.cmc.hackathon4.domain.house.service;
 
+import java.time.LocalDate;
+
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
+import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseStatus;
+import com.cmc.hackathon4.domain.house.repository.HouseMemberRepository;
 import com.cmc.hackathon4.domain.house.repository.HouseRepository;
+import com.cmc.hackathon4.domain.period.entity.Period;
+import com.cmc.hackathon4.domain.period.repository.PeriodRepository;
 import com.cmc.hackathon4.domain.user.entity.CharacterType;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
@@ -30,6 +36,10 @@ class HouseServiceTest {
 	UserRepository userRepository;
 	@Autowired
 	HouseRepository houseRepository;
+	@Autowired
+	HouseMemberRepository houseMemberRepository;
+	@Autowired
+	PeriodRepository periodRepository;
 
 	private User newUser(String deviceId) {
 		return userRepository.save(new User(deviceId, "이름", CharacterType.CHARACTER_1));
@@ -122,6 +132,83 @@ class HouseServiceTest {
 
 		assertError(() -> houseService.join(newcomer.getId(), new HouseJoinRequest(created.inviteCode())),
 				ErrorCode.HOUSE_DISTRIBUTING);
+	}
+
+	@Test
+	void 대기_중에는_방장만_다른_구성원을_내보낼_수_있다() {
+		User owner = newUser("dev-owner");
+		User member = newUser("dev-member");
+		User outsider = newUser("dev-outsider");
+		HouseCreateResponse house = houseService.create(owner.getId(), new HouseCreateRequest("우리집"));
+		houseService.join(member.getId(), new HouseJoinRequest(house.inviteCode()));
+
+		assertError(() -> houseService.removeMember(house.id(), member.getId(), owner.getId()),
+				ErrorCode.HOUSE_OWNER_ONLY);
+		assertError(() -> houseService.removeMember(house.id(), owner.getId(), owner.getId()), ErrorCode.INVALID_INPUT);
+		assertError(() -> houseService.removeMember(house.id(), owner.getId(), outsider.getId()),
+				ErrorCode.INVALID_INPUT);
+		houseService.removeMember(house.id(), owner.getId(), member.getId());
+
+		assertThat(houseMemberRepository.findByUserId(member.getId())).isEmpty();
+		assertThat(houseMemberRepository.findByUserId(owner.getId())).isPresent();
+	}
+
+	@Test
+	void 배분_중이거나_시작한_집에서는_구성원을_내보낼_수_없다() {
+		User owner = newUser("dev-owner");
+		User member = newUser("dev-member");
+		HouseCreateResponse created = houseService.create(owner.getId(), new HouseCreateRequest("우리집"));
+		houseService.join(member.getId(), new HouseJoinRequest(created.inviteCode()));
+		House house = houseRepository.findById(created.id()).orElseThrow();
+
+		house.startDistributing(7);
+		assertError(() -> houseService.removeMember(house.getId(), owner.getId(), member.getId()),
+				ErrorCode.HOUSE_DISTRIBUTING);
+		house.activate();
+		assertError(() -> houseService.removeMember(house.getId(), owner.getId(), member.getId()),
+				ErrorCode.HOUSE_ALREADY_STARTED);
+
+		assertThat(houseMemberRepository.findByHouseIdAndUserId(house.getId(), member.getId())).isPresent();
+	}
+
+	@Test
+	void 집_상세는_상태에_맞는_기간을_반환한다() {
+		User owner = newUser("dev-owner");
+		Long houseId = houseService.create(owner.getId(), new HouseCreateRequest("우리집")).id();
+		House house = houseRepository.findById(houseId).orElseThrow();
+		LocalDate start = LocalDate.of(2026, 11, 23);
+
+		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod()).isNull();
+
+		house.startDistributing(7);
+		Period first = periodRepository.save(new Period(house, 1, start, start.plusDays(6)));
+		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod().id()).isEqualTo(first.getId());
+
+		house.activate();
+		first.start();
+		LocalDate nextStart = start.plusWeeks(1);
+		periodRepository.save(new Period(house, 2, nextStart, nextStart.plusDays(6)));
+		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod().id()).isEqualTo(first.getId());
+	}
+
+	@Test
+	void 집_이름과_결산_주기는_보낸_필드만_수정하고_진행_중_기간은_유지한다() {
+		User owner = newUser("dev-owner");
+		Long houseId = houseService.create(owner.getId(), new HouseCreateRequest("우리집")).id();
+		House house = houseRepository.findById(houseId).orElseThrow();
+		LocalDate start = LocalDate.of(2026, 11, 23);
+		house.startDistributing(7);
+		house.activate();
+		Period current = periodRepository.save(new Period(house, 1, start, start.plusDays(6)));
+		current.start();
+
+		assertThat(houseService.update(houseId, owner.getId(), new HouseUpdateRequest(" 새이름 ", null))
+				.settlementCycle()).isEqualTo(7);
+		assertThat(houseService.update(houseId, owner.getId(), new HouseUpdateRequest(null, 3))
+				.name()).isEqualTo("새이름");
+
+		assertThat(houseService.getDetail(houseId, owner.getId()).settlementCycle()).isEqualTo(3);
+		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod().endDate()).isEqualTo(start.plusDays(6));
 	}
 
 }
