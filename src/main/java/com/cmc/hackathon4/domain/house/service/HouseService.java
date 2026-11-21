@@ -28,6 +28,7 @@ import com.cmc.hackathon4.domain.user.repository.UserRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +57,7 @@ public class HouseService {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_JOINED);
 		}
 		House house = houseRepository.save(HouseConverter.toEntity(request, generateInviteCode()));
-		houseMemberRepository.save(new HouseMember(house, user, MemberRole.OWNER));
+		saveMember(new HouseMember(house, user, MemberRole.OWNER));
 		return HouseConverter.toCreateResponse(house);
 	}
 
@@ -70,8 +71,21 @@ public class HouseService {
 		House house = houseRepository.findByInviteCodeForUpdate(request.inviteCode())
 				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_INVALID_INVITE_CODE));
 		validateJoinable(house, houseMemberRepository.countByHouseId(house.getId()));
-		houseMemberRepository.save(new HouseMember(house, user, MemberRole.MEMBER));
+		saveMember(new HouseMember(house, user, MemberRole.MEMBER));
 		return HouseConverter.toJoinResponse(house);
+	}
+
+	/**
+	 * 앞의 existsByUserId 검사는 잠금 없이 하므로 같은 사용자의 만들기·참여가 동시에 들어오면 둘 다 통과할 수 있다. 그때 늦은 쪽은 user_id unique 제약
+	 * (uk_house_member_user)에 걸리므로 여기서 바로 flush 해 HOUSE_ALREADY_JOINED 로 바꾼다.
+	 */
+	private void saveMember(HouseMember member) {
+		try {
+			houseMemberRepository.saveAndFlush(member);
+		}
+		catch (DataIntegrityViolationException e) {
+			throw new BusinessException(ErrorCode.HOUSE_ALREADY_JOINED);
+		}
 	}
 
 	/** S-13-C 참여 전 미리보기. 로그인 없이 초대 코드로 조회하며, 참여할 수 없는 집이면 join 과 같은 에러를 낸다. */
@@ -106,8 +120,8 @@ public class HouseService {
 	}
 
 	/**
-	 * 보낸 필드만 수정한다. 주기는 다음 기간부터 적용되므로 진행 중 기간은 건드리지 않는다. 배분 확인 중(DISTRIBUTING)이면 아직 시작 전인 1회차 기간의 종료일을 새
-	 * 주기로 다시 계산한다.
+	 * 보낸 필드만 수정한다. 주기는 다음 기간부터 적용되므로 진행 중 기간은 건드리지 않는다. 아직 시작 전인 READY 기간(배분 확인 중의 1회차, 준비해 둔 다음 회차)이
+	 * 있으면 그 종료일을 새 주기로 다시 계산한다. 배분 전(WAITING)에는 주기를 바꿀 수 없다.
 	 */
 	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public HouseUpdateResponse update(Long houseId, Long userId, HouseUpdateRequest request) {
@@ -121,12 +135,15 @@ public class HouseService {
 			if (!House.isValidSettlementCycle(request.settlementCycle())) {
 				throw new BusinessException(ErrorCode.INVALID_INPUT, "settlementCycle: 결산 주기는 1, 3, 7일 중 하나여야 합니다.");
 			}
-			house.changeSettlementCycle(request.settlementCycle());
-			if (house.getStatus() == HouseStatus.DISTRIBUTING) {
-				periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
-						.ifPresent(ready -> ready.reschedule(ready.getStartDate(),
-								house.periodEndDateFrom(ready.getStartDate())));
+			// 결산 주기는 배분을 만들 때 처음 정한다. 그 전(WAITING)에는 null 로 둔다.
+			if (house.getStatus() == HouseStatus.WAITING) {
+				throw new BusinessException(ErrorCode.INVALID_INPUT, "settlementCycle: 결산 주기는 배분을 만들 때 정합니다.");
 			}
+			house.changeSettlementCycle(request.settlementCycle());
+			// 아직 시작 전인 READY 기간(배분 확인 중의 1회차, 시작한 집이 준비해 둔 다음 회차)은 종료일을 새 주기로 다시 계산한다.
+			periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
+					.ifPresent(ready -> ready.reschedule(ready.getStartDate(),
+							house.periodEndDateFrom(ready.getStartDate())));
 		}
 		return HouseConverter.toUpdateResponse(house);
 	}
@@ -144,10 +161,10 @@ public class HouseService {
 			}
 		}
 		if (ownerUserId.equals(targetUserId)) {
-			throw new BusinessException(ErrorCode.INVALID_INPUT);
+			throw new BusinessException(ErrorCode.INVALID_INPUT, "userId: 방장 자신은 내보낼 수 없습니다.");
 		}
 		HouseMember target = houseMemberRepository.findByHouseIdAndUserId(houseId, targetUserId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "userId: 이 집의 구성원이 아닙니다."));
 		houseMemberRepository.delete(target);
 		notificationService.deleteAllOf(targetUserId);
 	}

@@ -158,6 +158,7 @@ class HouseServiceTest {
 		assertError(() -> houseService.removeMember(house.id(), owner.getId(), owner.getId()), ErrorCode.INVALID_INPUT);
 		assertError(() -> houseService.removeMember(house.id(), owner.getId(), outsider.getId()),
 				ErrorCode.INVALID_INPUT);
+		assertError(() -> houseService.removeMember(house.id(), owner.getId(), -1L), ErrorCode.INVALID_INPUT);
 		houseService.removeMember(house.id(), owner.getId(), member.getId());
 
 		assertThat(houseMemberRepository.findByUserId(member.getId())).isEmpty();
@@ -241,6 +242,58 @@ class HouseServiceTest {
 
 		assertThat(houseService.getDetail(houseId, owner.getId()).settlementCycle()).isEqualTo(3);
 		assertThat(houseService.getDetail(houseId, owner.getId()).currentPeriod().endDate()).isEqualTo(start.plusDays(6));
+	}
+
+	// Regression: 구성원 빼기 실패가 COMMON-400 기본 문구만 내려 어떤 값이 잘못됐는지 알 수 없던 문제
+	@Test
+	void 구성원_빼기_실패는_어떤_값이_잘못됐는지_필드_메시지로_알려준다() {
+		User owner = newUser("dev-owner");
+		User outsider = newUser("dev-outsider");
+		Long houseId = houseService.create(owner.getId(), new HouseCreateRequest("우리집")).id();
+
+		assertThatThrownBy(() -> houseService.removeMember(houseId, owner.getId(), owner.getId()))
+				.hasMessage("userId: 방장 자신은 내보낼 수 없습니다.");
+		assertThatThrownBy(() -> houseService.removeMember(houseId, owner.getId(), outsider.getId()))
+				.hasMessage("userId: 이 집의 구성원이 아닙니다.");
+		assertThatThrownBy(() -> houseService.removeMember(houseId, owner.getId(), -1L))
+				.hasMessage("userId: 이 집의 구성원이 아닙니다.");
+	}
+
+	// Regression: 배분 전(WAITING) 집에 결산 주기를 저장할 수 있어 "WAITING 이면 settlementCycle 은 null" 과 어긋나던 문제
+	@Test
+	void 배분_전인_집은_결산_주기를_바꿀_수_없고_이름은_바꿀_수_있다() {
+		User owner = newUser("dev-owner");
+		Long houseId = houseService.create(owner.getId(), new HouseCreateRequest("우리집")).id();
+
+		assertThatThrownBy(() -> houseService.update(houseId, owner.getId(), new HouseUpdateRequest(null, 3)))
+				.isInstanceOf(BusinessException.class)
+				.hasMessage("settlementCycle: 결산 주기는 배분을 만들 때 정합니다.");
+		assertThat(houseService.update(houseId, owner.getId(), new HouseUpdateRequest("새집", null)).name())
+				.isEqualTo("새집");
+		assertThat(houseRepository.findById(houseId).orElseThrow().getSettlementCycle()).isNull();
+	}
+
+	// Regression: 시작한 집에서 다음 기간(READY)을 준비해 둔 뒤 주기를 바꾸면 READY 의 종료일이 옛 주기로 남던 문제
+	@Test
+	void 시작한_집에서_주기를_바꾸면_준비해_둔_다음_기간의_종료일도_새_주기로_바뀐다() {
+		User owner = newUser("dev-owner");
+		Long houseId = houseService.create(owner.getId(), new HouseCreateRequest("우리집")).id();
+		House house = houseRepository.findById(houseId).orElseThrow();
+		LocalDate start = LocalDate.of(2026, 11, 23);
+		house.startDistributing(7);
+		house.activate();
+		Period first = periodRepository.save(new Period(house, 1, start, start.plusDays(6)));
+		first.start();
+		first.end(java.time.Instant.now());
+		LocalDate nextStart = start.plusDays(7);
+		Period next = periodRepository.save(new Period(house, 2, nextStart, nextStart.plusDays(6)));
+
+		houseService.update(houseId, owner.getId(), new HouseUpdateRequest(null, 3));
+
+		Period saved = periodRepository.findById(next.getId()).orElseThrow();
+		assertThat(saved.getStartDate()).isEqualTo(nextStart);
+		assertThat(saved.getEndDate()).isEqualTo(nextStart.plusDays(2));
+		assertThat(periodRepository.findById(first.getId()).orElseThrow().getEndDate()).isEqualTo(start.plusDays(6));
 	}
 
 }
