@@ -14,5 +14,5 @@ spring:
 
 app:
   cors:
-    # 해커톤 편의상 전체 허용. 필요하면 프론트 주소만 남긴다 (쉼표로 구분)
-    allowed-origin-patterns: "*"
+    # 프론트 주소만 허용 (쉼표로 구분, 공백 없이): Vercel 운영 / Vercel 프리뷰 / 로컬 Vite 개발 서버
+    allowed-origin-patterns: "https://team-4-frontend-bice.vercel.app,https://team-4-frontend-*.vercel.app,http://localhost:5173"
