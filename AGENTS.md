@@ -57,6 +57,7 @@ com/cmc/hackathon4/
 - 서비스 클래스에 `@Transactional(readOnly = true)`, 쓰기 메서드만 `@Transactional`.
 - 실패는 `throw new BusinessException(ErrorCode.XXX)`. 새 코드는 `USER_NOT_FOUND(NOT_FOUND, "USER-404", "...")` 형식.
 - `@RequestBody` 에 `@Valid`, 제약은 요청 record 필드에 (메시지 한글).
+- `@PathVariable`·`@RequestParam` 에 `@Pattern` 같은 제약을 컨트롤러에 달지 않는다. `XxxApiDocs` 인터페이스와 충돌(HV000151)해 그 컨트롤러 전체가 500 이 된다. 서비스에서 검사하고 `BusinessException(INVALID_INPUT, "필드: 메시지")` 로 던진다.
 
 ## Swagger·로그·테스트
 - Swagger 어노테이션은 `XxxApiDocs` 인터페이스에만. 컨트롤러는 implements 하고 매핑·로직만.

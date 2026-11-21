@@ -5,12 +5,14 @@ import java.util.List;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseMemberResponse;
 import com.cmc.hackathon4.domain.house.dto.HousePeriodResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateResponse;
 import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
+import com.cmc.hackathon4.domain.house.entity.MemberRole;
 import com.cmc.hackathon4.domain.period.entity.Period;
 
 public final class HouseConverter {
@@ -28,6 +30,16 @@ public final class HouseConverter {
 
 	public static HouseJoinResponse toJoinResponse(House house) {
 		return new HouseJoinResponse(house.getId(), house.getName(), house.getStatus());
+	}
+
+	public static HouseInvitePreviewResponse toInvitePreviewResponse(House house, List<HouseMember> members) {
+		String ownerName = members.stream()
+				.filter(member -> member.getRole() == MemberRole.OWNER)
+				.map(member -> member.getUser().getName())
+				.findFirst()
+				.orElse(null);
+		return new HouseInvitePreviewResponse(house.getName(), members.size(), House.MAX_MEMBERS, ownerName,
+				house.getStatus());
 	}
 
 	public static HouseUpdateResponse toUpdateResponse(House house) {

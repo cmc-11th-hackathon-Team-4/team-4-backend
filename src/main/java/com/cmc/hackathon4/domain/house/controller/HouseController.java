@@ -3,6 +3,7 @@ package com.cmc.hackathon4.domain.house.controller;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
@@ -40,6 +41,12 @@ public class HouseController implements HouseApiDocs {
 	@PostMapping("/join")
 	public ApiResponse<HouseJoinResponse> join(@CurrentUser User user, @Valid @RequestBody HouseJoinRequest request) {
 		return ApiResponse.ok(houseService.join(user.getId(), request));
+	}
+
+	@Override
+	@GetMapping("/invite/{inviteCode}")
+	public ApiResponse<HouseInvitePreviewResponse> getInvitePreview(@PathVariable String inviteCode) {
+		return ApiResponse.ok(houseService.getInvitePreview(inviteCode));
 	}
 
 	@Override

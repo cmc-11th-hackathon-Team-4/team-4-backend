@@ -22,7 +22,7 @@ public class SwaggerConfig {
 			## 공통 응답 형식
 			성공: `{ "success": true, "code": "OK", "message": "성공", "data": { ... } }`
 
-			실패: `{ "success": false, "code": "HOUSE-409-1", "message": "정원(4명)이 가득 찼습니다.", "data": null }`
+			실패: `{ "success": false, "code": "HOUSE-409-1", "message": "정원(5명)이 가득 찼습니다.", "data": null }`
 
 			같은 HTTP 상태라도 원인이 여러 개일 수 있으니 **분기는 `code` 로 한다.** 각 API 의 응답 목록에서 상태별로 나올 수 있는 코드와 예시를 볼 수 있다.
 

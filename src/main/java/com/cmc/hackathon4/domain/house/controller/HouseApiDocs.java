@@ -3,6 +3,7 @@ package com.cmc.hackathon4.domain.house.controller;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseCreateResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseDetailResponse;
+import com.cmc.hackathon4.domain.house.dto.HouseInvitePreviewResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinRequest;
 import com.cmc.hackathon4.domain.house.dto.HouseJoinResponse;
 import com.cmc.hackathon4.domain.house.dto.HouseUpdateRequest;
@@ -30,6 +31,13 @@ public interface HouseApiDocs {
 	@ApiErrorCodes({ ErrorCode.HOUSE_INVALID_INVITE_CODE, ErrorCode.HOUSE_ALREADY_JOINED, ErrorCode.HOUSE_FULL, ErrorCode.HOUSE_DISTRIBUTING })
 	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "코드 형식 오류")
 	ApiResponse<HouseJoinResponse> join(User user, HouseJoinRequest request);
+
+	@Operation(summary = "초대 코드로 집 미리보기", description = "S-13-C '이 집이 맞나요?'. 참여 전에 초대 코드로 집 이름·구성원 수·정원·방장 이름·상태를 본다. X-Device-Id 없이 호출한다. 참여할 수 없는 집(배분 중, 정원 참)이면 참여 API 와 같은 에러를 낸다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")
+	@ApiErrorCodes({ ErrorCode.HOUSE_INVALID_INVITE_CODE, ErrorCode.HOUSE_FULL, ErrorCode.HOUSE_DISTRIBUTING })
+	@ApiErrorCase(code = ErrorCode.INVALID_INPUT, when = "코드 형식 오류")
+	ApiResponse<HouseInvitePreviewResponse> getInvitePreview(
+			@Parameter(description = "초대 코드 (영대문자+숫자 6자리)", example = "AB12CD") String inviteCode);
 
 	@Operation(summary = "집 정보·구성원 조회", description = "집 설정과 구성원 목록을 조회한다. 대기실은 이 API 를 폴링한다. WAITING 이면 currentPeriod·settlementCycle 이 null, DISTRIBUTING 이면 currentPeriod 가 READY 기간, ACTIVE 이면 READY 를 뺀 최신 기간.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공")

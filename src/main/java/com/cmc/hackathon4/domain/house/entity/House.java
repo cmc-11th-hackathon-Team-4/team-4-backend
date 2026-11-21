@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class House extends BaseTimeEntity {
 
-	public static final int MAX_MEMBERS = 4;
+	public static final int MAX_MEMBERS = 5;
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
