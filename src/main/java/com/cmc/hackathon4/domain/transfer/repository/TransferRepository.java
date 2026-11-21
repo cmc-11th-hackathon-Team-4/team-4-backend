@@ -37,4 +37,8 @@ public interface TransferRepository extends JpaRepository<Transfer, Long> {
 			"fromUser", "toUser"})
 	Optional<Transfer> findWithDetailsById(Long id);
 
+	/** 이동이 속한 집의 id. 엔티티를 읽기 전에 집 행을 먼저 잠글 때 쓴다. */
+	@Query("select t.assignment.period.house.id from Transfer t where t.id = :id")
+	Optional<Long> findHouseIdById(@Param("id") Long id);
+
 }

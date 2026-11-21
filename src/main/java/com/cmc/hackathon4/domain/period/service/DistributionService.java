@@ -30,6 +30,7 @@ import com.cmc.hackathon4.global.exception.BusinessException;
 import com.cmc.hackathon4.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 온보딩 랜덤 배분(#15 만들기, #37 조회, #36 다시 섞기, #16 확정). */
@@ -52,10 +53,10 @@ public class DistributionService {
 	/**
 	 * 결산 주기·시작일을 저장하고 1회차 기간(READY)과 랜덤 배분을 만든다. 이미 DISTRIBUTING 이면 주기·날짜를 갱신하고 배분을 새로 만든다.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionResponse create(Long houseId, Long userId, DistributionCreateRequest request) {
 		houseMemberValidator.getOwner(houseId, userId);
-		House house = getHouse(houseId);
+		House house = lockHouse(houseId);
 		if (house.getStatus() == HouseStatus.ACTIVE) {
 			throw new BusinessException(ErrorCode.HOUSE_ALREADY_STARTED);
 		}
@@ -96,10 +97,10 @@ public class DistributionService {
 	}
 
 	/** READY 기간의 배분을 지우고 랜덤 배분을 다시 만든다. 방장만, DISTRIBUTING 일 때만 가능. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionResponse shuffle(Long houseId, Long userId) {
 		houseMemberValidator.getOwner(houseId, userId);
-		getDistributingHouse(houseId);
+		requireDistributing(lockHouse(houseId));
 		Long periodId = getReadyPeriod(houseId).getId();
 
 		// 영속성 컨텍스트가 비워지므로 이 뒤에 엔티티를 다시 조회한다.
@@ -108,10 +109,10 @@ public class DistributionService {
 	}
 
 	/** 배분을 확정한다. 기간 READY → ACTIVE, 집 DISTRIBUTING → ACTIVE, 방장 제외 전원에게 PERIOD_STARTED 알림. */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public DistributionStartResponse start(Long houseId, Long userId) {
 		HouseMember owner = houseMemberValidator.getOwner(houseId, userId);
-		House house = getDistributingHouse(houseId);
+		House house = requireDistributing(lockHouse(houseId));
 		Period period = getReadyPeriod(houseId);
 		period.start();
 		house.activate();
@@ -127,7 +128,16 @@ public class DistributionService {
 	}
 
 	private House getDistributingHouse(Long houseId) {
-		House house = getHouse(houseId);
+		return requireDistributing(getHouse(houseId));
+	}
+
+	/** 같은 집에 대한 쓰기(배분 만들기·섞기·확정)가 겹치지 않도록 집 행을 잠근다. */
+	private House lockHouse(Long houseId) {
+		return houseRepository.findByIdForUpdate(houseId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
+	}
+
+	private House requireDistributing(House house) {
 		if (house.getStatus() != HouseStatus.DISTRIBUTING) {
 			throw new BusinessException(ErrorCode.HOUSE_NOT_DISTRIBUTING);
 		}
