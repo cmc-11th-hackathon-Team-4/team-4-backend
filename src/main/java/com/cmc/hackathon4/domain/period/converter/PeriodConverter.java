@@ -9,9 +9,11 @@ import com.cmc.hackathon4.domain.house.entity.House;
 import com.cmc.hackathon4.domain.house.entity.HouseMember;
 import com.cmc.hackathon4.domain.period.dto.DistributionResponse;
 import com.cmc.hackathon4.domain.period.dto.DistributionStartResponse;
+import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodResponse;
+import com.cmc.hackathon4.domain.period.dto.PeriodStartResponse;
 import com.cmc.hackathon4.domain.period.dto.SettlementResponse;
 import com.cmc.hackathon4.domain.period.entity.Period;
 import com.cmc.hackathon4.domain.transfer.entity.Transfer;
@@ -76,6 +78,28 @@ public final class PeriodConverter {
 
 		return new SettlementResponse(toPeriodResponse(period), memberInfos, summary, chores, myUndone,
 				new SettlementResponse.Kindness(ranking, kingUserIds), nextPeriodStarted);
+	}
+
+	/** 다음 주기 배분 결과(prepared=true). 구성원은 참여 순서, 짐은 이월된 것이 먼저, 그 안에서 집안일 ID 순이다. */
+	public static NextPeriodResponse toNextPeriodResponse(Period period, List<HouseMember> members,
+			List<Assignment> assignments, Long myUserId) {
+		List<NextPeriodResponse.Member> memberResponses = members.stream().map(member -> {
+			User user = member.getUser();
+			List<NextPeriodResponse.Chore> chores = assignments.stream()
+					.filter(assignment -> assignment.getAssignee().getId().equals(user.getId()))
+					.sorted(Comparator.comparing((Assignment assignment) -> !assignment.isCarriedOver())
+							.thenComparing(assignment -> assignment.getChore().getId()))
+					.map(assignment -> new NextPeriodResponse.Chore(assignment.getChore().getId(),
+							assignment.getChore().getName(), assignment.isCarriedOver()))
+					.toList();
+			return new NextPeriodResponse.Member(user.getId(), user.getName(), user.getCharacterType(),
+					member.getRole(), user.getId().equals(myUserId), chores);
+		}).toList();
+		return new NextPeriodResponse(true, toPeriodResponse(period), assignments.size(), memberResponses);
+	}
+
+	public static PeriodStartResponse toPeriodStartResponse(Period period) {
+		return new PeriodStartResponse(toPeriodResponse(period));
 	}
 
 	private static SettlementResponse.UserInfo toUserInfo(User user) {

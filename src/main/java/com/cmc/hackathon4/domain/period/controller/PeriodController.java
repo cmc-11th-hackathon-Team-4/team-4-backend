@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.period.controller;
 
 import com.cmc.hackathon4.domain.period.dto.CarryOverRequest;
 import com.cmc.hackathon4.domain.period.dto.CarryOverResponse;
+import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
@@ -52,6 +53,12 @@ public class PeriodController implements PeriodApiDocs {
 	public ApiResponse<CarryOverResponse> saveCarryOvers(@CurrentUser User user, @PathVariable Long periodId,
 			@Valid @RequestBody CarryOverRequest request) {
 		return ApiResponse.ok(periodService.saveCarryOvers(periodId, user.getId(), request));
+	}
+
+	@Override
+	@PostMapping("/houses/{houseId}/periods/next")
+	public ApiResponse<NextPeriodResponse> createNext(@CurrentUser User user, @PathVariable Long houseId) {
+		return ApiResponse.ok(periodService.createNext(houseId, user.getId()));
 	}
 
 }

@@ -2,6 +2,7 @@ package com.cmc.hackathon4.domain.period.controller;
 
 import com.cmc.hackathon4.domain.period.dto.CarryOverRequest;
 import com.cmc.hackathon4.domain.period.dto.CarryOverResponse;
+import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
@@ -45,5 +46,12 @@ public interface PeriodApiDocs {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "아직 종료되지 않은 기간 (PERIOD-409-1) / 이미 다음 기간이 시작됨 (PERIOD-409-2)")
 	ApiResponse<CarryOverResponse> saveCarryOvers(User user,
 			@Parameter(description = "종료된 기간 ID", example = "1") Long periodId, CarryOverRequest request);
+
+	@Operation(summary = "다음 주기 배분 만들기·다시 나누기", description = "방장이 직전(ENDED) 기간 다음 회차를 READY 로 만들고 배분을 저장한다. 이미 있으면 배분만 새로 만든다. 못 한 일 중 KEEP(미선택 포함)은 원래 담당자에게 고정(carriedOver)되고 나머지만 총 개수가 균등하도록 랜덤 배분된다.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "생성 성공")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "방장이 아님 (HOUSE-403) / 구성원이 아님 (HOUSE-403-1)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "집 없음 (HOUSE-404)")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "직전 기간이 종료되지 않음 (PERIOD-409-1) / 이미 다음 기간이 시작됨 (PERIOD-409-2)")
+	ApiResponse<NextPeriodResponse> createNext(User user, @Parameter(description = "집 ID", example = "1") Long houseId);
 
 }

@@ -1,10 +1,12 @@
 package com.cmc.hackathon4.domain.period.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -22,6 +24,7 @@ import com.cmc.hackathon4.domain.notification.service.NotificationService;
 import com.cmc.hackathon4.domain.period.converter.PeriodConverter;
 import com.cmc.hackathon4.domain.period.dto.CarryOverRequest;
 import com.cmc.hackathon4.domain.period.dto.CarryOverResponse;
+import com.cmc.hackathon4.domain.period.dto.NextPeriodResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodEndResponse;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendRequest;
 import com.cmc.hackathon4.domain.period.dto.PeriodExtendResponse;
@@ -170,6 +173,41 @@ public class PeriodService {
 		List<Assignment> assignments = new ArrayList<>(carried);
 		assignments.addAll(distributed);
 		return assignmentRepository.saveAll(assignments);
+	}
+
+	/**
+	 * 직전 기간(ENDED)을 기준으로 다음 회차 기간(READY)을 만들고, 이미 있으면 배분만 새로 만든다. 이월(KEEP)된 짐은 그대로 두고 나머지만 다시 섞인다.
+	 */
+	@Transactional
+	public NextPeriodResponse createNext(Long houseId, Long userId) {
+		houseMemberValidator.getOwner(houseId, userId);
+		Period previous = getPreviousEndedPeriod(houseId);
+		Period next = findReadyNext(houseId, previous).orElseGet(() -> {
+			LocalDate startDate = previous.getEndDate().plusDays(1);
+			LocalDate endDate = previous.getHouse().getSettlementCycle().endDateFrom(startDate);
+			return periodRepository.save(new Period(previous.getHouse(), previous.getRound() + 1, startDate, endDate));
+		});
+
+		List<Assignment> assignments = createNextAssignments(houseId, next.getId(), previous.getId());
+		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
+		return PeriodConverter.toNextPeriodResponse(getPeriod(next.getId()), members, assignments, userId);
+	}
+
+	/**
+	 * 다음 주기 API 의 기준이 되는 직전 ENDED 기간. 진행 중(ACTIVE)인 기간이 1회차면 아직 종료되지 않은 것(PERIOD-409-1), 2회차 이후면 다음 기간이 이미 시작된 것(PERIOD-409-2)이다.
+	 */
+	private Period getPreviousEndedPeriod(Long houseId) {
+		periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.ACTIVE).ifPresent(active -> {
+			throw new BusinessException(active.getRound() > 1 ? ErrorCode.PERIOD_NEXT_ALREADY_STARTED
+					: ErrorCode.PERIOD_NOT_ENDED);
+		});
+		return periodRepository.findFirstByHouseIdAndStatusOrderByRoundDesc(houseId, PeriodStatus.ENDED)
+				.orElseThrow(() -> new BusinessException(ErrorCode.PERIOD_NOT_ENDED));
+	}
+
+	private Optional<Period> findReadyNext(Long houseId, Period previous) {
+		return periodRepository.findByHouseIdAndStatus(houseId, PeriodStatus.READY)
+				.filter(ready -> ready.getRound() > previous.getRound());
 	}
 
 	private Period getPeriod(Long periodId) {
