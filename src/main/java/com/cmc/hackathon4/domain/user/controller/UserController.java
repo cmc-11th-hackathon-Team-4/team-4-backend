@@ -3,6 +3,7 @@ package com.cmc.hackathon4.domain.user.controller;
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserMeResponse;
 import com.cmc.hackathon4.domain.user.dto.UserResponse;
+import com.cmc.hackathon4.domain.user.dto.UserUpdateRequest;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
 import com.cmc.hackathon4.domain.user.service.UserService;
@@ -10,6 +11,7 @@ import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +34,12 @@ public class UserController implements UserApiDocs {
 	@GetMapping("/me")
 	public ApiResponse<UserMeResponse> getMe(@CurrentUser User user) {
 		return ApiResponse.ok(userService.getMe(user.getId()));
+	}
+
+	@Override
+	@PatchMapping("/me")
+	public ApiResponse<UserResponse> update(@CurrentUser User user, @Valid @RequestBody UserUpdateRequest request) {
+		return ApiResponse.ok(userService.update(user.getId(), request));
 	}
 
 }

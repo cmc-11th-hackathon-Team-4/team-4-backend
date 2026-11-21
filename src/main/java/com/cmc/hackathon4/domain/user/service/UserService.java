@@ -6,6 +6,7 @@ import com.cmc.hackathon4.domain.user.converter.UserConverter;
 import com.cmc.hackathon4.domain.user.dto.UserCreateRequest;
 import com.cmc.hackathon4.domain.user.dto.UserMeResponse;
 import com.cmc.hackathon4.domain.user.dto.UserResponse;
+import com.cmc.hackathon4.domain.user.dto.UserUpdateRequest;
 import com.cmc.hackathon4.domain.user.entity.User;
 import com.cmc.hackathon4.domain.user.repository.UserRepository;
 import com.cmc.hackathon4.global.exception.BusinessException;
@@ -31,6 +32,18 @@ public class UserService {
 
 	private User getUser(Long userId) {
 		return userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+	}
+
+	@Transactional
+	public UserResponse update(Long userId, UserUpdateRequest request) {
+		User user = getUser(userId);
+		if (request.name() != null) {
+			user.changeName(request.name());
+		}
+		if (request.characterType() != null) {
+			user.changeCharacterType(request.characterType());
+		}
+		return UserConverter.toResponse(user);
 	}
 
 	@Transactional
