@@ -81,6 +81,24 @@ public class DistributionService {
 		return createDistribution(house, period, userId);
 	}
 
+	/** 서버에 저장된 배분 결과를 구성원 누구나 조회한다. DISTRIBUTING 일 때만 가능. */
+	public DistributionResponse get(Long houseId, Long userId) {
+		houseMemberValidator.getMember(houseId, userId);
+		House house = getDistributingHouse(houseId);
+		Period period = getReadyPeriod(houseId);
+		List<HouseMember> members = houseMemberRepository.findAllByHouseIdOrderByIdAsc(houseId);
+		List<Assignment> assignments = assignmentRepository.findAllByPeriodIdOrderByIdAsc(period.getId());
+		return PeriodConverter.toDistributionResponse(house, period, members, assignments, userId);
+	}
+
+	private House getDistributingHouse(Long houseId) {
+		House house = getHouse(houseId);
+		if (house.getStatus() != HouseStatus.DISTRIBUTING) {
+			throw new BusinessException(ErrorCode.HOUSE_NOT_DISTRIBUTING);
+		}
+		return house;
+	}
+
 	private House getHouse(Long houseId) {
 		return houseRepository.findById(houseId).orElseThrow(() -> new BusinessException(ErrorCode.HOUSE_NOT_FOUND));
 	}

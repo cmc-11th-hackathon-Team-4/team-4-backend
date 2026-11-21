@@ -8,6 +8,7 @@ import com.cmc.hackathon4.domain.user.resolver.CurrentUser;
 import com.cmc.hackathon4.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +27,12 @@ public class DistributionController implements DistributionApiDocs {
 	public ApiResponse<DistributionResponse> create(@CurrentUser User user, @PathVariable Long houseId,
 			@Valid @RequestBody DistributionCreateRequest request) {
 		return ApiResponse.ok(distributionService.create(houseId, user.getId(), request));
+	}
+
+	@Override
+	@GetMapping("/distribution")
+	public ApiResponse<DistributionResponse> get(@CurrentUser User user, @PathVariable Long houseId) {
+		return ApiResponse.ok(distributionService.get(houseId, user.getId()));
 	}
 
 }
